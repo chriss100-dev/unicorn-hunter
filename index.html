@@ -1,0 +1,1487 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Unicorn Hunter</title>
+  <style>
+    :root {
+      --ink: #56315f;
+      --ink-soft: #7f6291;
+      --panel: rgba(255, 249, 255, 0.78);
+      --panel-strong: rgba(255, 255, 255, 0.9);
+      --pink: #ff8fc8;
+      --pink-dark: #d95b9f;
+      --lavender: #b99cff;
+      --mint: #88e5d3;
+      --sky: #9bdcff;
+      --gold: #ffd36e;
+      --white: #fff;
+      --shadow: 0 24px 70px rgba(115, 64, 141, 0.24);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #bfefff;
+      color: var(--ink);
+      font-family: ui-rounded, "SF Pro Rounded", "Avenir Next", Nunito, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      touch-action: none;
+      user-select: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    #gameRoot {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 16% 16%, rgba(255,255,255,0.75), transparent 20%),
+        linear-gradient(180deg, #bcecff 0%, #fbd8f2 48%, #d9f7d9 100%);
+    }
+
+    #gameCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: none;
+    }
+
+    .cloud {
+      position: absolute;
+      width: 28vmin;
+      height: 9vmin;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.5);
+      filter: blur(0.2px);
+      box-shadow:
+        5vmin -3vmin 0 0 rgba(255,255,255,0.55),
+        11vmin -1.5vmin 0 1vmin rgba(255,255,255,0.46),
+        17vmin 0 0 -0.5vmin rgba(255,255,255,0.5);
+      animation: driftCloud var(--duration, 34s) linear infinite;
+      opacity: 0.85;
+      pointer-events: none;
+    }
+
+    .cloud.one {
+      left: -35vmin;
+      top: 12%;
+      --duration: 42s;
+    }
+
+    .cloud.two {
+      left: -48vmin;
+      top: 32%;
+      width: 22vmin;
+      transform: scale(0.8);
+      --duration: 56s;
+      animation-delay: -22s;
+      opacity: 0.55;
+    }
+
+    .cloud.three {
+      left: -40vmin;
+      top: 5%;
+      width: 18vmin;
+      transform: scale(0.65);
+      --duration: 62s;
+      animation-delay: -38s;
+      opacity: 0.45;
+    }
+
+    @keyframes driftCloud {
+      from { translate: 0 0; }
+      to { translate: calc(100vw + 70vmin) 0; }
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,229,250,0.22));
+      backdrop-filter: blur(5px);
+      opacity: 1;
+      transition: opacity 180ms ease, visibility 180ms ease;
+      z-index: 5;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .panel {
+      width: min(680px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      padding: clamp(20px, 4vw, 38px);
+      border: 1px solid rgba(255,255,255,0.72);
+      border-radius: 28px;
+      background:
+        linear-gradient(150deg, rgba(255,255,255,0.93), rgba(255,245,253,0.82)),
+        radial-gradient(circle at 15% 5%, rgba(255,211,110,0.34), transparent 28%);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.92);
+      text-align: center;
+      animation: panelIn 420ms cubic-bezier(.18,.82,.28,1);
+    }
+
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .logo {
+      display: block;
+      width: min(430px, 88%);
+      margin: 0 auto 8px;
+      filter: drop-shadow(0 12px 18px rgba(196, 95, 179, 0.24));
+    }
+
+    .textLogo {
+      margin: 0 0 8px;
+      font-size: clamp(42px, 9vw, 74px);
+      line-height: 0.92;
+      color: #ff7fbd;
+      text-shadow:
+        0 4px 0 #fff,
+        0 10px 22px rgba(189, 98, 183, 0.28);
+    }
+
+    .subtitle {
+      margin: 0 0 14px;
+      color: var(--ink);
+      font-weight: 800;
+      letter-spacing: 0;
+      font-size: clamp(16px, 3.4vw, 21px);
+    }
+
+    .copy {
+      margin: 0 auto 22px;
+      max-width: 520px;
+      color: var(--ink-soft);
+      font-size: clamp(15px, 2.8vw, 18px);
+      line-height: 1.45;
+    }
+
+    .modeGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 20px 0 14px;
+    }
+
+    .bigButton,
+    .smallButton,
+    .iconButton {
+      border: 0;
+      color: var(--ink);
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,238,251,0.96));
+      box-shadow: 0 10px 24px rgba(126, 77, 153, 0.17), inset 0 -2px 0 rgba(174, 97, 169, 0.12);
+      cursor: pointer;
+      transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+    }
+
+    .bigButton {
+      min-height: 96px;
+      padding: 18px 16px;
+      border-radius: 20px;
+      border: 2px solid rgba(255,255,255,0.82);
+      font-weight: 950;
+      font-size: clamp(16px, 2.8vw, 22px);
+    }
+
+    .bigButton span {
+      display: block;
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--ink-soft);
+      font-weight: 800;
+    }
+
+    .bigButton.arcade {
+      background: linear-gradient(135deg, #fff9ff, #ffd7ee 47%, #d9f7ff);
+    }
+
+    .bigButton.cozy {
+      background: linear-gradient(135deg, #fbfff8, #ddfbef 45%, #f7dcff);
+    }
+
+    .bigButton:hover,
+    .smallButton:hover,
+    .iconButton:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 32px rgba(126, 77, 153, 0.22), inset 0 -2px 0 rgba(174, 97, 169, 0.14);
+      filter: saturate(1.06);
+    }
+
+    .bigButton:active,
+    .smallButton:active,
+    .iconButton:active {
+      transform: translateY(1px) scale(0.99);
+    }
+
+    .hint {
+      margin: 12px 0 0;
+      color: #8d7198;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .smallButton {
+      min-height: 42px;
+      padding: 0 18px;
+      border-radius: 999px;
+      font-weight: 900;
+    }
+
+    #hud {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      z-index: 3;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: start;
+      gap: 10px;
+      padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 0 max(10px, env(safe-area-inset-left));
+      pointer-events: none;
+      transition: opacity 150ms ease;
+    }
+
+    #hud.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hudGroup {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .hudGroup.right {
+      justify-content: flex-end;
+    }
+
+    .pill {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(255,255,255,0.75);
+      box-shadow: 0 10px 28px rgba(89, 62, 126, 0.14);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 950;
+      backdrop-filter: blur(8px);
+      white-space: nowrap;
+    }
+
+    .pill.scorePop {
+      animation: scorePop 260ms ease;
+    }
+
+    .pill.comboPulse {
+      animation: comboPulse 440ms ease;
+    }
+
+    @keyframes scorePop {
+      0% { transform: scale(1); }
+      44% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes comboPulse {
+      0% { transform: scale(1); color: var(--ink); }
+      45% { transform: scale(1.14); color: #d84e9e; }
+      100% { transform: scale(1); color: var(--ink); }
+    }
+
+    .iconButton {
+      pointer-events: auto;
+      width: 42px;
+      height: 42px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: 950;
+    }
+
+    #customCursor {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 48px;
+      height: 48px;
+      margin: -24px 0 0 -24px;
+      border: 3px solid rgba(255, 143, 200, 0.74);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 8;
+      opacity: 0;
+      transform: translate3d(-100px, -100px, 0) scale(1);
+      transition: opacity 160ms ease, transform 80ms linear;
+      box-shadow:
+        0 0 0 5px rgba(255,255,255,0.38),
+        0 0 22px rgba(255, 143, 200, 0.56);
+    }
+
+    #customCursor::before {
+      content: "♥";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -56%);
+      color: rgba(255, 117, 188, 0.82);
+      font-size: 20px;
+      text-shadow: 0 2px 0 #fff;
+    }
+
+    .playing #customCursor {
+      opacity: 1;
+    }
+
+    .statGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 18px 0;
+      text-align: left;
+    }
+
+    .stat {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.56);
+      border: 1px solid rgba(255,255,255,0.7);
+    }
+
+    .stat b {
+      display: block;
+      color: var(--ink-soft);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .stat span {
+      font-weight: 950;
+      font-size: 22px;
+      color: var(--ink);
+    }
+
+    #ratingTitle {
+      margin: 8px 0 4px;
+      color: #d8509e;
+      font-size: clamp(28px, 7vw, 46px);
+      line-height: 1;
+      text-shadow: 0 3px 0 #fff;
+    }
+
+    #endCozy {
+      display: none;
+    }
+
+    #endCozy.visible {
+      display: inline-flex;
+    }
+
+    @media (max-width: 680px) {
+      .modeGrid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        border-radius: 22px;
+      }
+
+      #hud {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .hudGroup,
+      .hudGroup.right {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .pill {
+        min-height: 36px;
+        padding: 7px 10px;
+        font-size: 12px;
+      }
+
+      .iconButton {
+        width: 38px;
+        height: 38px;
+      }
+
+      .statGrid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (hover: none) {
+      #customCursor {
+        display: none;
+      }
+
+      #gameCanvas {
+        cursor: default;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="gameRoot" aria-label="Unicorn Hunter Arcade-Spiel">
+    <canvas id="gameCanvas"></canvas>
+    <div class="cloud one"></div>
+    <div class="cloud two"></div>
+    <div class="cloud three"></div>
+    <div id="customCursor"></div>
+
+    <section id="menuScreen" class="overlay">
+      <div class="panel">
+        <img id="menuLogo" class="logo" src="assets/ui_logo.webp" alt="Unicorn Hunter">
+        <h1 id="fallbackLogo" class="textLogo" hidden>Unicorn Hunter</h1>
+        <p class="subtitle">Glitzer. Herzen. Kein Einhorn wurde verletzt.</p>
+        <p class="copy">Triff die Einhörner mit Regenbogenliebe und sammle Glitzerpunkte.</p>
+        <div class="modeGrid">
+          <button id="arcadeStart" class="bigButton arcade" type="button">
+            Arcade-Modus – 90 Sekunden
+            <span>Schnelle Glitzerjagd</span>
+          </button>
+          <button id="cozyStart" class="bigButton cozy" type="button">
+            Entspannter Modus – Ruhige Runde
+            <span>Weiche Wolken, langsamere Magie</span>
+          </button>
+        </div>
+        <p class="hint">Klicke oder tippe auf die Einhörner, bevor sie davonschweben.</p>
+        <div class="row">
+          <button id="menuSound" class="smallButton" type="button">Ton an</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="pauseScreen" class="overlay hidden">
+      <div class="panel">
+        <h2 class="textLogo" style="font-size: clamp(42px, 8vw, 64px);">Pause</h2>
+        <p class="copy">Das Glitzertal hält kurz den Atem an.</p>
+        <div class="row">
+          <button id="resumeGame" class="smallButton" type="button">Weiter</button>
+          <button id="restartPause" class="smallButton" type="button">Neu starten</button>
+          <button id="menuPause" class="smallButton" type="button">Zum Menü</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="gameOverScreen" class="overlay hidden">
+      <div class="panel">
+        <p class="subtitle">Runde beendet!</p>
+        <h2 id="ratingTitle">Regenbogen-Neuling</h2>
+        <div class="statGrid">
+          <div class="stat"><b>Endpunktzahl</b><span id="finalScore">0</span></div>
+          <div class="stat"><b>Bestwert</b><span id="finalHighscore">0</span></div>
+          <div class="stat"><b>Beste Serie</b><span id="finalCombo">x0</span></div>
+          <div class="stat"><b>Getroffene Einhörner</b><span id="finalHits">0</span></div>
+          <div class="stat"><b>Modus</b><span id="finalMode">Arcade</span></div>
+          <div class="stat"><b>Typen</b><span id="finalTypes">0 / 0 / 0 / 0</span></div>
+        </div>
+        <div class="row">
+          <button id="playAgain" class="smallButton" type="button">Nochmal spielen</button>
+          <button id="changeMode" class="smallButton" type="button">Modus wechseln</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="hud" class="hidden">
+      <div class="hudGroup">
+        <div id="scorePill" class="pill">Punkte: <span id="scoreText">0</span></div>
+        <div class="pill">Modus: <span id="modeText">Arcade</span></div>
+      </div>
+      <div class="hudGroup">
+        <div class="pill">Zeit: <span id="timeText">01:30</span></div>
+        <button id="endCozy" class="iconButton" type="button" title="Runde beenden" aria-label="Runde beenden">✓</button>
+      </div>
+      <div class="hudGroup right">
+        <div id="comboPill" class="pill">Serie: <span id="comboText">x0</span></div>
+        <button id="soundHud" class="iconButton" type="button" title="Ton an" aria-label="Ton umschalten">♪</button>
+        <button id="pauseGame" class="iconButton" type="button" title="Pause" aria-label="Pause">Ⅱ</button>
+        <button id="restartHud" class="iconButton" type="button" title="Neu starten" aria-label="Neu starten">↻</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STATES = Object.freeze({
+        MENU: "MENU",
+        PLAYING: "PLAYING",
+        PAUSED: "PAUSED",
+        GAME_OVER: "GAME_OVER"
+      });
+
+      const STORAGE = {
+        arcade: "unicornHunter.highscore.arcade",
+        cozy: "unicornHunter.highscore.cozy",
+        sound: "unicornHunter.sound"
+      };
+
+      const ASSETS = {
+        background: "assets/background_fairy_meadow.webp",
+        logo: "assets/ui_logo.webp",
+        standard: "assets/unicorn_standard.webp",
+        baby: "assets/unicorn_baby.webp",
+        golden: "assets/unicorn_golden.webp",
+        sleepy: "assets/unicorn_sleepy.webp",
+        sparkle: "assets/sparkle_cloud.webp",
+        heart: "assets/heart_projectile.webp",
+        beam: "assets/rainbow_beam.webp"
+      };
+
+      // Balancing values are intentionally centralized so the two modes feel distinct.
+      const MODES = {
+        arcade: {
+          key: "arcade",
+          label: "Arcade",
+          uiName: "Arcade-Modus",
+          duration: 90,
+          spawnStart: 0.78,
+          spawnEnd: 0.38,
+          speed: 1.16,
+          maxUnicorns: 8,
+          cozyMisses: false,
+          weights: { standard: 54, baby: 24, golden: 5, sleepy: 17 }
+        },
+        cozy: {
+          key: "cozy",
+          label: "Entspannt",
+          uiName: "Entspannter Modus",
+          duration: 120,
+          spawnStart: 1.22,
+          spawnEnd: 0.94,
+          speed: 0.78,
+          maxUnicorns: 5,
+          cozyMisses: true,
+          weights: { standard: 36, baby: 16, golden: 4, sleepy: 44 }
+        }
+      };
+
+      const UNICORNS = {
+        standard: { label: "Standard", points: 10, asset: "standard", size: 118, speed: 124, hit: 0.74 },
+        baby: { label: "Baby", points: 20, asset: "baby", size: 84, speed: 168, hit: 0.92 },
+        golden: { label: "Gold", points: 50, asset: "golden", size: 116, speed: 178, hit: 0.84 },
+        sleepy: { label: "Schläfrig", points: 15, asset: "sleepy", size: 130, speed: 92, hit: 0.82 }
+      };
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const rand = (min, max) => min + Math.random() * (max - min);
+      const easeOut = t => 1 - Math.pow(1 - t, 3);
+      const fmt = n => Math.round(n).toLocaleString("de-DE");
+
+      function storageGet(key, fallback) {
+        try {
+          const value = localStorage.getItem(key);
+          return value === null ? fallback : value;
+        } catch {
+          return fallback;
+        }
+      }
+
+      function storageSet(key, value) {
+        try {
+          localStorage.setItem(key, String(value));
+        } catch {
+          // Private browsing can disable storage; gameplay continues without it.
+        }
+      }
+
+      class AssetManager {
+        constructor(sources) {
+          this.images = {};
+          Object.entries(sources).forEach(([key, src]) => {
+            const image = new Image();
+            image.onload = () => image.ready = true;
+            image.onerror = () => image.failed = true;
+            image.src = src;
+            this.images[key] = image;
+          });
+        }
+
+        get(key) {
+          const image = this.images[key];
+          return image && image.ready ? image : null;
+        }
+      }
+
+      class SoundManager {
+        constructor() {
+          this.enabled = storageGet(STORAGE.sound, "on") !== "off";
+          this.ctx = null;
+        }
+
+        async ensure() {
+          if (!this.enabled) return;
+          if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            this.ctx = new AudioContext();
+          }
+          if (this.ctx.state === "suspended") {
+            await this.ctx.resume();
+          }
+        }
+
+        setEnabled(enabled) {
+          this.enabled = enabled;
+          storageSet(STORAGE.sound, enabled ? "on" : "off");
+        }
+
+        toggle() {
+          this.setEnabled(!this.enabled);
+          if (this.enabled) {
+            this.ensure().then(() => this.button());
+          }
+        }
+
+        tone(freq, time, type = "sine", volume = 0.08, delay = 0) {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime + delay;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.22, now + time * 0.55);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(volume, now + 0.018);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + time);
+          osc.connect(gain).connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + time + 0.02);
+        }
+
+        button() {
+          this.tone(520, 0.08, "sine", 0.035);
+          this.tone(780, 0.1, "triangle", 0.025, 0.03);
+        }
+
+        cast() {
+          this.tone(660, 0.08, "triangle", 0.035);
+        }
+
+        hit(type) {
+          const base = type === "golden" ? 880 : 620;
+          this.tone(base, 0.12, "sine", type === "golden" ? 0.075 : 0.052);
+          this.tone(base * 1.5, 0.18, "triangle", type === "golden" ? 0.055 : 0.035, 0.04);
+          if (type === "golden") this.tone(1320, 0.22, "sine", 0.04, 0.13);
+        }
+
+        combo(combo) {
+          if (combo < 3) return;
+          this.tone(740 + combo * 14, 0.08, "sine", 0.035);
+          this.tone(960 + combo * 12, 0.11, "triangle", 0.03, 0.055);
+        }
+
+        gameOver() {
+          [523, 659, 784, 1046].forEach((note, i) => this.tone(note, 0.18, "sine", 0.045, i * 0.11));
+        }
+
+        cozy() {
+          this.tone(440, 0.16, "sine", 0.026);
+          this.tone(660, 0.22, "triangle", 0.022, 0.12);
+        }
+      }
+
+      class Unicorn {
+        constructor(game, typeKey) {
+          this.game = game;
+          this.typeKey = typeKey;
+          this.type = UNICORNS[typeKey];
+          this.age = 0;
+          this.dead = false;
+          this.fade = 1;
+          this.pattern = ["wave", "hop", "float", "straight"][Math.floor(rand(0, 4))];
+          this.dir = Math.random() > 0.5 ? 1 : -1;
+          this.scale = rand(0.88, 1.15) * (typeKey === "baby" ? rand(0.9, 1.08) : 1);
+          this.w = this.type.size * this.scale;
+          this.h = this.type.size * this.scale * this.aspect();
+          this.x = this.dir > 0 ? -this.w - rand(10, 120) : game.width + this.w + rand(10, 120);
+          const minY = game.height * 0.24;
+          const maxY = game.height * 0.78;
+          this.baseY = rand(minY, maxY);
+          this.y = this.baseY;
+          this.speed = this.type.speed * game.mode.speed * rand(0.88, 1.22) * game.difficulty();
+          this.wave = rand(16, 44);
+          this.waveSpeed = rand(1.6, 3.2);
+          this.layer = rand(0, 1);
+          if (typeKey === "golden") {
+            this.speed *= 1.12;
+            this.wave *= 0.7;
+          }
+          if (typeKey === "sleepy") {
+            this.speed *= 0.76;
+            this.pattern = "float";
+          }
+        }
+
+        aspect() {
+          const img = this.game.assets.get(this.type.asset);
+          if (img) return img.naturalHeight / img.naturalWidth;
+          return this.typeKey === "baby" ? 0.86 : 0.78;
+        }
+
+        update(dt) {
+          this.age += dt;
+          this.x += this.dir * this.speed * dt;
+          const t = this.age * this.waveSpeed;
+          if (this.pattern === "wave") this.y = this.baseY + Math.sin(t) * this.wave;
+          if (this.pattern === "hop") this.y = this.baseY - Math.abs(Math.sin(t * 1.2)) * this.wave * 0.9;
+          if (this.pattern === "float") this.y = this.baseY + Math.sin(t * 0.75) * this.wave * 0.65 + Math.sin(t * 1.7) * 7;
+          if (this.pattern === "straight") this.y = this.baseY + Math.sin(t) * 8;
+          const beyond = this.dir > 0 ? this.x > this.game.width + this.w * 1.4 : this.x < -this.w * 1.4;
+          if (beyond) this.dead = true;
+        }
+
+        contains(px, py) {
+          const mobileBoost = this.game.isMobile ? 1.18 : 1;
+          const hw = this.w * this.type.hit * mobileBoost;
+          const hh = this.h * 0.62 * mobileBoost;
+          return px >= this.x - hw * 0.08 && px <= this.x + hw && py >= this.y - hh * 0.16 && py <= this.y + hh;
+        }
+
+        draw(ctx) {
+          const img = this.game.assets.get(this.type.asset);
+          const bob = Math.sin(this.age * 8) * 3;
+          ctx.save();
+          ctx.globalAlpha = this.fade;
+          ctx.translate(this.x + this.w / 2, this.y + this.h / 2 + bob);
+          ctx.scale(this.dir > 0 ? 1 : -1, 1);
+          if (img) {
+            ctx.drawImage(img, -this.w / 2, -this.h / 2, this.w, this.h);
+          } else {
+            drawFallbackUnicorn(ctx, this.typeKey, this.w, this.h);
+          }
+          ctx.restore();
+        }
+      }
+
+      class Particle {
+        constructor(x, y, options = {}) {
+          this.x = x;
+          this.y = y;
+          this.vx = options.vx ?? rand(-70, 70);
+          this.vy = options.vy ?? rand(-110, 40);
+          this.life = options.life ?? rand(0.5, 1);
+          this.maxLife = this.life;
+          this.size = options.size ?? rand(4, 9);
+          this.color = options.color ?? ["#fff", "#ff8fc8", "#ffd36e", "#b99cff", "#88e5d3"][Math.floor(rand(0, 5))];
+          this.shape = options.shape ?? (Math.random() > 0.58 ? "heart" : "star");
+          this.spin = rand(-5, 5);
+          this.rotation = rand(0, Math.PI * 2);
+        }
+
+        update(dt) {
+          this.life -= dt;
+          this.x += this.vx * dt;
+          this.y += this.vy * dt;
+          this.vy += 58 * dt;
+          this.rotation += this.spin * dt;
+        }
+
+        draw(ctx) {
+          const a = clamp(this.life / this.maxLife, 0, 1);
+          ctx.save();
+          ctx.globalAlpha = a;
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.rotation);
+          ctx.fillStyle = this.color;
+          ctx.shadowColor = this.color;
+          ctx.shadowBlur = 10;
+          if (this.shape === "heart") {
+            drawHeart(ctx, this.size);
+          } else {
+            drawStar(ctx, this.size);
+          }
+          ctx.restore();
+        }
+      }
+
+      class Effect {
+        constructor(x, y, kind, assets, scale = 1) {
+          this.x = x;
+          this.y = y;
+          this.kind = kind;
+          this.assets = assets;
+          this.age = 0;
+          this.life = kind === "beam" ? 0.24 : kind === "projectile" ? 0.34 : 0.62;
+          this.scale = scale;
+          this.rotation = rand(-0.16, 0.16);
+        }
+
+        update(dt) {
+          this.age += dt;
+        }
+
+        draw(ctx) {
+          const t = clamp(this.age / this.life, 0, 1);
+          const a = 1 - easeOut(t);
+          const key = this.kind === "beam" ? "beam" : this.kind === "projectile" ? "heart" : "sparkle";
+          const img = this.assets.get(key);
+          ctx.save();
+          ctx.globalAlpha = a;
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.rotation);
+          const pulse = (0.65 + easeOut(t) * 0.65) * this.scale;
+          if (img) {
+            const w = (this.kind === "beam" ? 170 : this.kind === "projectile" ? 86 : 140) * pulse;
+            const h = w * img.naturalHeight / img.naturalWidth;
+            ctx.drawImage(img, -w / 2, -h / 2, w, h);
+          } else {
+            drawFallbackSparkle(ctx, 90 * pulse);
+          }
+          ctx.restore();
+        }
+      }
+
+      class FloatingText {
+        constructor(x, y, text, color = "#d8509e") {
+          this.x = x;
+          this.y = y;
+          this.text = text;
+          this.color = color;
+          this.life = 0.8;
+          this.maxLife = 0.8;
+        }
+
+        update(dt) {
+          this.life -= dt;
+          this.y -= 52 * dt;
+        }
+
+        draw(ctx) {
+          const a = clamp(this.life / this.maxLife, 0, 1);
+          ctx.save();
+          ctx.globalAlpha = a;
+          ctx.font = "950 24px ui-rounded, system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.lineJoin = "round";
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.lineWidth = 7;
+          ctx.strokeText(this.text, this.x, this.y);
+          ctx.fillStyle = this.color;
+          ctx.fillText(this.text, this.x, this.y);
+          ctx.restore();
+        }
+      }
+
+      class Game {
+        constructor() {
+          this.root = document.getElementById("gameRoot");
+          this.canvas = document.getElementById("gameCanvas");
+          this.ctx = this.canvas.getContext("2d");
+          this.assets = new AssetManager(ASSETS);
+          this.sound = new SoundManager();
+          this.state = STATES.MENU;
+          this.mode = MODES.arcade;
+          this.width = 0;
+          this.height = 0;
+          this.dpr = 1;
+          this.last = performance.now();
+          this.unicorns = [];
+          this.particles = [];
+          this.effects = [];
+          this.texts = [];
+          this.score = 0;
+          this.combo = 0;
+          this.bestCombo = 0;
+          this.lastHit = -99;
+          this.timeLeft = 90;
+          this.elapsed = 0;
+          this.spawnClock = 0;
+          this.missMercy = 0;
+          this.hits = { standard: 0, baby: 0, golden: 0, sleepy: 0 };
+          this.isMobile = matchMedia("(hover: none), (pointer: coarse)").matches;
+          this.bindUI();
+          this.resize();
+          addEventListener("resize", () => this.resize(), { passive: true });
+          requestAnimationFrame(t => this.frame(t));
+        }
+
+        bindUI() {
+          this.ui = {
+            menu: document.getElementById("menuScreen"),
+            pause: document.getElementById("pauseScreen"),
+            gameOver: document.getElementById("gameOverScreen"),
+            hud: document.getElementById("hud"),
+            scoreText: document.getElementById("scoreText"),
+            timeText: document.getElementById("timeText"),
+            modeText: document.getElementById("modeText"),
+            comboText: document.getElementById("comboText"),
+            scorePill: document.getElementById("scorePill"),
+            comboPill: document.getElementById("comboPill"),
+            soundHud: document.getElementById("soundHud"),
+            menuSound: document.getElementById("menuSound"),
+            endCozy: document.getElementById("endCozy"),
+            cursor: document.getElementById("customCursor"),
+            menuLogo: document.getElementById("menuLogo"),
+            fallbackLogo: document.getElementById("fallbackLogo")
+          };
+
+          this.ui.menuLogo.onerror = () => {
+            this.ui.menuLogo.hidden = true;
+            this.ui.fallbackLogo.hidden = false;
+          };
+
+          document.getElementById("arcadeStart").addEventListener("click", () => this.start("arcade"));
+          document.getElementById("cozyStart").addEventListener("click", () => this.start("cozy"));
+          document.getElementById("pauseGame").addEventListener("click", () => this.pause());
+          document.getElementById("resumeGame").addEventListener("click", () => this.resume());
+          document.getElementById("restartHud").addEventListener("click", () => this.restart());
+          document.getElementById("restartPause").addEventListener("click", () => this.restart());
+          document.getElementById("menuPause").addEventListener("click", () => this.toMenu());
+          document.getElementById("playAgain").addEventListener("click", () => this.restart());
+          document.getElementById("changeMode").addEventListener("click", () => this.toMenu());
+          this.ui.endCozy.addEventListener("click", () => this.finishRound());
+          this.ui.soundHud.addEventListener("click", () => this.toggleSound());
+          this.ui.menuSound.addEventListener("click", () => this.toggleSound());
+
+          this.canvas.addEventListener("pointerdown", e => this.pointerDown(e));
+          this.canvas.addEventListener("pointermove", e => this.pointerMove(e), { passive: true });
+          this.canvas.addEventListener("pointerleave", () => this.ui.cursor.style.opacity = 0, { passive: true });
+          document.addEventListener("keydown", e => {
+            if (e.code === "Space" || e.code === "Escape") {
+              if (this.state === STATES.PLAYING) this.pause();
+              else if (this.state === STATES.PAUSED) this.resume();
+            }
+          });
+          this.updateSoundButtons();
+        }
+
+        resize() {
+          this.dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+          this.width = innerWidth;
+          this.height = innerHeight;
+          this.canvas.width = Math.floor(this.width * this.dpr);
+          this.canvas.height = Math.floor(this.height * this.dpr);
+          this.canvas.style.width = this.width + "px";
+          this.canvas.style.height = this.height + "px";
+          this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        }
+
+        start(modeKey) {
+          this.mode = MODES[modeKey];
+          // AudioContext activation can be delayed by browser policies; gameplay must start immediately.
+          this.sound.ensure().catch(() => {});
+          if (modeKey === "cozy") this.sound.cozy();
+          else this.sound.button();
+          this.resetRound();
+          this.state = STATES.PLAYING;
+          this.root.classList.add("playing");
+          this.ui.menu.classList.add("hidden");
+          this.ui.pause.classList.add("hidden");
+          this.ui.gameOver.classList.add("hidden");
+          this.ui.hud.classList.remove("hidden");
+          this.ui.endCozy.classList.toggle("visible", modeKey === "cozy");
+          this.updateHUD();
+        }
+
+        resetRound() {
+          this.unicorns = [];
+          this.particles = [];
+          this.effects = [];
+          this.texts = [];
+          this.score = 0;
+          this.combo = 0;
+          this.bestCombo = 0;
+          this.lastHit = -99;
+          this.elapsed = 0;
+          this.timeLeft = this.mode.duration;
+          this.spawnClock = 0.18;
+          this.missMercy = 0;
+          this.hits = { standard: 0, baby: 0, golden: 0, sleepy: 0 };
+        }
+
+        restart() {
+          this.sound.button();
+          this.start(this.mode.key);
+        }
+
+        pause() {
+          if (this.state !== STATES.PLAYING) return;
+          this.sound.button();
+          this.state = STATES.PAUSED;
+          this.ui.pause.classList.remove("hidden");
+        }
+
+        resume() {
+          if (this.state !== STATES.PAUSED) return;
+          this.sound.button();
+          this.state = STATES.PLAYING;
+          this.ui.pause.classList.add("hidden");
+          this.last = performance.now();
+        }
+
+        toMenu() {
+          this.sound.button();
+          this.state = STATES.MENU;
+          this.root.classList.remove("playing");
+          this.ui.menu.classList.remove("hidden");
+          this.ui.pause.classList.add("hidden");
+          this.ui.gameOver.classList.add("hidden");
+          this.ui.hud.classList.add("hidden");
+        }
+
+        toggleSound() {
+          this.sound.toggle();
+          this.updateSoundButtons();
+        }
+
+        updateSoundButtons() {
+          const label = this.sound.enabled ? "Ton an" : "Ton aus";
+          this.ui.menuSound.textContent = label;
+          this.ui.soundHud.textContent = this.sound.enabled ? "♪" : "×";
+          this.ui.soundHud.title = label;
+          this.ui.soundHud.setAttribute("aria-label", label);
+        }
+
+        pointerMove(e) {
+          this.ui.cursor.style.opacity = this.state === STATES.PLAYING ? 1 : 0;
+          this.ui.cursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+        }
+
+        pointerDown(e) {
+          if (this.state !== STATES.PLAYING) return;
+          e.preventDefault();
+          this.sound.ensure();
+          const rect = this.canvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          this.sound.cast();
+          this.effects.push(new Effect(x, y, "projectile", this.assets, 0.88));
+          this.effects.push(new Effect(x, y, "beam", this.assets, 0.86));
+          this.createTapParticles(x, y, false);
+
+          let hit = null;
+          for (let i = this.unicorns.length - 1; i >= 0; i--) {
+            if (this.unicorns[i].contains(x, y)) {
+              hit = this.unicorns[i];
+              break;
+            }
+          }
+
+          if (hit) {
+            this.hitUnicorn(hit, x, y);
+          } else {
+            this.miss(x, y);
+          }
+        }
+
+        hitUnicorn(unicorn, x, y) {
+          unicorn.dead = true;
+          const now = this.elapsed;
+          this.combo = now - this.lastHit <= 2 ? this.combo + 1 : 1;
+          this.lastHit = now;
+          this.bestCombo = Math.max(this.bestCombo, this.combo);
+          this.missMercy = 0;
+          const multiplier = this.combo >= 10 ? 2 : this.combo >= 6 ? 1.5 : this.combo >= 3 ? 1.25 : 1;
+          const gained = Math.round(unicorn.type.points * multiplier);
+          this.score += gained;
+          this.hits[unicorn.typeKey]++;
+          this.effects.push(new Effect(unicorn.x + unicorn.w * 0.5, unicorn.y + unicorn.h * 0.45, "sparkle", this.assets, unicorn.typeKey === "golden" ? 1.35 : 1));
+          this.texts.push(new FloatingText(x, y - 20, `+${gained}`, unicorn.typeKey === "golden" ? "#d99a19" : "#d8509e"));
+          this.createHitParticles(unicorn.x + unicorn.w * 0.5, unicorn.y + unicorn.h * 0.45, unicorn.typeKey);
+          this.sound.hit(unicorn.typeKey);
+          this.sound.combo(this.combo);
+          this.ui.scorePill.classList.remove("scorePop");
+          this.ui.comboPill.classList.remove("comboPulse");
+          void this.ui.scorePill.offsetWidth;
+          this.ui.scorePill.classList.add("scorePop");
+          this.ui.comboPill.classList.add("comboPulse");
+          this.updateHUD();
+        }
+
+        miss(x, y) {
+          this.texts.push(new FloatingText(x, y - 10, "Funkel!", "#8d7198"));
+          if (this.mode.cozyMisses) {
+            this.missMercy++;
+            if (this.missMercy >= 3) {
+              this.combo = Math.max(0, this.combo - 1);
+              this.missMercy = 0;
+            }
+          } else {
+            this.combo = 0;
+          }
+          this.updateHUD();
+        }
+
+        createTapParticles(x, y, strong) {
+          const count = strong ? 18 : 7;
+          for (let i = 0; i < count; i++) {
+            this.particles.push(new Particle(x, y, {
+              life: rand(0.32, 0.74),
+              size: rand(3, strong ? 9 : 6),
+              vx: rand(-90, 90),
+              vy: rand(-100, 40)
+            }));
+          }
+        }
+
+        createHitParticles(x, y, type) {
+          const count = type === "golden" ? 38 : this.mode.key === "cozy" ? 28 : 22;
+          for (let i = 0; i < count; i++) {
+            const color = type === "golden"
+              ? ["#fff4b8", "#ffd36e", "#ff9dcc", "#ffffff"][Math.floor(rand(0, 4))]
+              : ["#ffffff", "#ff8fc8", "#b99cff", "#88e5d3", "#ffd36e"][Math.floor(rand(0, 5))];
+            this.particles.push(new Particle(x + rand(-16, 16), y + rand(-12, 12), {
+              color,
+              life: rand(0.56, type === "golden" ? 1.35 : 1.05),
+              size: rand(4, type === "golden" ? 12 : 9),
+              vx: rand(-160, 160),
+              vy: rand(-170, 70)
+            }));
+          }
+        }
+
+        difficulty() {
+          const progress = clamp(this.elapsed / this.mode.duration, 0, 1);
+          return this.mode.key === "arcade" ? 1 + progress * 0.34 : 1 + progress * 0.08;
+        }
+
+        spawnInterval() {
+          const progress = clamp(this.elapsed / this.mode.duration, 0, 1);
+          return this.mode.spawnStart + (this.mode.spawnEnd - this.mode.spawnStart) * progress;
+        }
+
+        spawn() {
+          if (this.unicorns.length >= this.mode.maxUnicorns) return;
+          const weights = this.mode.weights;
+          const total = Object.values(weights).reduce((a, b) => a + b, 0);
+          let roll = rand(0, total);
+          let chosen = "standard";
+          for (const [key, weight] of Object.entries(weights)) {
+            roll -= weight;
+            if (roll <= 0) {
+              chosen = key;
+              break;
+            }
+          }
+          this.unicorns.push(new Unicorn(this, chosen));
+          if (Math.random() > 0.62 && this.unicorns.length < this.mode.maxUnicorns && this.mode.key === "arcade") {
+            setTimeout(() => {
+              if (this.state === STATES.PLAYING) this.unicorns.push(new Unicorn(this, Math.random() > 0.62 ? "baby" : "standard"));
+            }, rand(120, 260));
+          }
+        }
+
+        frame(time) {
+          const dt = Math.min(0.033, (time - this.last) / 1000 || 0);
+          this.last = time;
+          if (this.state === STATES.PLAYING) this.update(dt);
+          else this.updateAmbient(dt);
+          this.draw(time / 1000);
+          requestAnimationFrame(t => this.frame(t));
+        }
+
+        update(dt) {
+          this.elapsed += dt;
+          this.timeLeft = Math.max(0, this.mode.duration - this.elapsed);
+          this.spawnClock -= dt;
+          if (this.spawnClock <= 0) {
+            this.spawn();
+            this.spawnClock = this.spawnInterval() * rand(0.72, 1.24);
+          }
+          this.unicorns.forEach(u => u.update(dt));
+          this.unicorns = this.unicorns.filter(u => !u.dead);
+          this.updateCollections(dt);
+          if (this.combo > 0 && this.elapsed - this.lastHit > 2.15) {
+            this.combo = 0;
+            this.updateHUD();
+          }
+          if (this.timeLeft <= 0) this.finishRound();
+          this.updateHUD();
+        }
+
+        updateAmbient(dt) {
+          this.updateCollections(dt);
+        }
+
+        updateCollections(dt) {
+          this.particles.forEach(p => p.update(dt));
+          this.effects.forEach(e => e.update(dt));
+          this.texts.forEach(t => t.update(dt));
+          this.particles = this.particles.filter(p => p.life > 0);
+          this.effects = this.effects.filter(e => e.age < e.life);
+          this.texts = this.texts.filter(t => t.life > 0);
+        }
+
+        finishRound() {
+          if (this.state === STATES.GAME_OVER) return;
+          this.state = STATES.GAME_OVER;
+          this.root.classList.remove("playing");
+          const key = this.mode.key === "arcade" ? STORAGE.arcade : STORAGE.cozy;
+          const oldHigh = Number(storageGet(key, "0")) || 0;
+          const high = Math.max(oldHigh, this.score);
+          storageSet(key, high);
+          this.populateGameOver(high);
+          this.ui.gameOver.classList.remove("hidden");
+          this.ui.pause.classList.add("hidden");
+          this.ui.hud.classList.add("hidden");
+          this.sound.gameOver();
+        }
+
+        populateGameOver(high) {
+          const totalHits = Object.values(this.hits).reduce((a, b) => a + b, 0);
+          document.getElementById("finalScore").textContent = fmt(this.score);
+          document.getElementById("finalHighscore").textContent = fmt(high);
+          document.getElementById("finalCombo").textContent = `x${this.bestCombo}`;
+          document.getElementById("finalHits").textContent = fmt(totalHits);
+          document.getElementById("finalMode").textContent = this.mode.uiName;
+          document.getElementById("finalTypes").textContent = `${this.hits.standard} / ${this.hits.baby} / ${this.hits.golden} / ${this.hits.sleepy}`;
+          document.getElementById("ratingTitle").textContent = this.rating();
+        }
+
+        rating() {
+          const score = this.score;
+          if (score >= 1500) return "Legende vom Glitzertal";
+          if (score >= 1000) return "Herzsturm-Champion";
+          if (score >= 650) return "Einhorn-Flüsterer";
+          if (score >= 300) return "Glitzerwächter";
+          return "Regenbogen-Neuling";
+        }
+
+        updateHUD() {
+          this.ui.scoreText.textContent = fmt(this.score);
+          this.ui.modeText.textContent = this.mode.label;
+          this.ui.timeText.textContent = formatTime(this.timeLeft);
+          this.ui.comboText.textContent = this.combo >= 10 ? `x${this.combo} Herzsturm!` : this.combo >= 6 ? `x${this.combo} Regenbogenrausch!` : this.combo >= 3 ? `x${this.combo} Glitzer-Serie!` : `x${this.combo}`;
+        }
+
+        draw(t) {
+          const ctx = this.ctx;
+          ctx.clearRect(0, 0, this.width, this.height);
+          this.drawBackground(ctx, t);
+          this.drawForegroundClouds(ctx, t, false);
+          this.unicorns
+            .slice()
+            .sort((a, b) => a.layer - b.layer || a.y - b.y)
+            .forEach(u => u.draw(ctx));
+          this.drawForegroundClouds(ctx, t, true);
+          this.effects.forEach(e => e.draw(ctx));
+          this.particles.forEach(p => p.draw(ctx));
+          this.texts.forEach(txt => txt.draw(ctx));
+        }
+
+        drawBackground(ctx, t) {
+          const bg = this.assets.get("background");
+          if (bg) {
+            drawCover(ctx, bg, 0, 0, this.width, this.height);
+          } else {
+            const grad = ctx.createLinearGradient(0, 0, 0, this.height);
+            grad.addColorStop(0, "#aee7ff");
+            grad.addColorStop(0.52, "#fbd6f1");
+            grad.addColorStop(1, "#dff7d1");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, this.width, this.height);
+            drawRainbow(ctx, this.width * 0.56, this.height * 0.46, Math.min(this.width, this.height) * 0.62);
+          }
+          for (let i = 0; i < 42; i++) {
+            const x = (i * 193 + t * (12 + i % 5)) % (this.width + 80) - 40;
+            const y = 35 + ((i * 71) % Math.max(90, this.height * 0.52));
+            const tw = 0.42 + Math.sin(t * 2.2 + i) * 0.28;
+            ctx.save();
+            ctx.globalAlpha = clamp(tw, 0.12, 0.58);
+            ctx.fillStyle = i % 4 === 0 ? "#ffd36e" : "#ffffff";
+            drawStar(ctx, 2.5 + (i % 3), x, y);
+            ctx.restore();
+          }
+        }
+
+        drawForegroundClouds(ctx, t, front) {
+          const baseY = front ? this.height * 0.58 : this.height * 0.25;
+          const alpha = front ? 0.26 : 0.18;
+          for (let i = 0; i < (front ? 2 : 3); i++) {
+            const speed = front ? 16 + i * 6 : 9 + i * 4;
+            const x = ((t * speed + i * 310) % (this.width + 420)) - 220;
+            const y = baseY + Math.sin(t * 0.35 + i) * 18 + i * 36;
+            softCloud(ctx, x, y, front ? 92 + i * 22 : 112 + i * 18, alpha);
+          }
+        }
+      }
+
+      function formatTime(seconds) {
+        const s = Math.ceil(seconds);
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+      }
+
+      function drawCover(ctx, img, x, y, w, h) {
+        const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+        const sw = w / scale;
+        const sh = h / scale;
+        const sx = (img.naturalWidth - sw) / 2;
+        const sy = (img.naturalHeight - sh) / 2;
+        ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+      }
+
+      function softCloud(ctx, x, y, size, alpha) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.ellipse(x, y, size * 0.72, size * 0.26, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + size * 0.38, y - size * 0.12, size * 0.46, size * 0.28, 0, 0, Math.PI * 2);
+        ctx.ellipse(x - size * 0.34, y - size * 0.08, size * 0.42, size * 0.24, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawRainbow(ctx, x, y, r) {
+        const colors = ["#ff9dcc", "#ffd36e", "#fff7a8", "#88e5d3", "#9bdcff", "#b99cff"];
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.globalAlpha = 0.54;
+        colors.forEach((c, i) => {
+          ctx.strokeStyle = c;
+          ctx.lineWidth = 10;
+          ctx.beginPath();
+          ctx.arc(x, y, r - i * 13, Math.PI * 1.08, Math.PI * 1.86);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      function drawHeart(ctx, size, x = 0, y = 0) {
+        ctx.save();
+        ctx.translate(x, y);
+        const s = size / 16;
+        ctx.beginPath();
+        ctx.moveTo(0, 6 * s);
+        ctx.bezierCurveTo(-13 * s, -3 * s, -8 * s, -13 * s, 0, -7 * s);
+        ctx.bezierCurveTo(8 * s, -13 * s, 13 * s, -3 * s, 0, 6 * s);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawStar(ctx, size, x = 0, y = 0) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const a = -Math.PI / 2 + i * Math.PI / 5;
+          const r = i % 2 ? size * 0.42 : size;
+          ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawFallbackSparkle(ctx, size) {
+        const grad = ctx.createRadialGradient(0, 0, 3, 0, 0, size);
+        grad.addColorStop(0, "rgba(255,255,255,0.9)");
+        grad.addColorStop(0.55, "rgba(255,143,200,0.46)");
+        grad.addColorStop(1, "rgba(185,156,255,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.fill();
+        ["#fff", "#ffd36e", "#ff8fc8"].forEach((c, i) => {
+          ctx.fillStyle = c;
+          drawStar(ctx, size * 0.12, Math.cos(i * 2.1) * size * 0.45, Math.sin(i * 2.1) * size * 0.35);
+        });
+      }
+
+      function drawFallbackUnicorn(ctx, type, w, h) {
+        const body = type === "golden" ? "#ffd36e" : "#fff9fb";
+        const mane = type === "sleepy" ? "#b99cff" : type === "baby" ? "#ff9dcc" : "#8ee8dc";
+        ctx.save();
+        ctx.scale(w / 160, h / 120);
+        ctx.translate(-80, -60);
+        ctx.shadowColor = "rgba(123,78,150,0.18)";
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = body;
+        roundedEllipse(ctx, 76, 68, 54, 30);
+        roundedEllipse(ctx, 117, 44, 30, 26);
+        ctx.fillStyle = "#f7e2f7";
+        ctx.fillRect(48, 86, 10, 27);
+        ctx.fillRect(80, 88, 10, 27);
+        ctx.fillRect(102, 84, 10, 27);
+        ctx.fillRect(126, 76, 10, 25);
+        ctx.fillStyle = "#cf8ee8";
+        ctx.fillRect(47, 107, 13, 7);
+        ctx.fillRect(79, 109, 13, 7);
+        ctx.fillRect(101, 105, 13, 7);
+        ctx.fillRect(125, 97, 13, 7);
+        ctx.fillStyle = mane;
+        roundedEllipse(ctx, 98, 44, 18, 30);
+        roundedEllipse(ctx, 40, 65, 20, 17);
+        ctx.fillStyle = "#ffd36e";
+        ctx.beginPath();
+        ctx.moveTo(123, 17);
+        ctx.lineTo(133, 42);
+        ctx.lineTo(111, 36);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#56315f";
+        ctx.beginPath();
+        ctx.arc(127, 41, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(128, 40, 1.4, 0, Math.PI * 2);
+        ctx.fill();
+        if (type === "sleepy") {
+          ctx.strokeStyle = "#56315f";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(127, 41, 5, 0.2, Math.PI - 0.2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function roundedEllipse(ctx, x, y, rx, ry) {
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      new Game();
+    })();
+  </script>
+</body>
+</html>
