@@ -313,6 +313,11 @@
       animation: comboPulse 440ms ease;
     }
 
+    .pill.powerActive {
+      color: #d8509e;
+      animation: comboPulse 900ms ease infinite;
+    }
+
     @keyframes scorePop {
       0% { transform: scale(1); }
       44% { transform: scale(1.12); }
@@ -517,6 +522,8 @@
           <div class="stat"><b>Getroffene Einhörner</b><span id="finalHits">0</span></div>
           <div class="stat"><b>Modus</b><span id="finalMode">Arcade</span></div>
           <div class="stat"><b>Typen</b><span id="finalTypes">0 / 0 / 0 / 0</span></div>
+          <div class="stat"><b>Zauber gesammelt</b><span id="finalPowerups">0</span></div>
+          <div class="stat"><b>Vorsichtstreffer</b><span id="finalHazards">0</span></div>
         </div>
         <div class="row">
           <button id="playAgain" class="smallButton" type="button">Nochmal spielen</button>
@@ -532,6 +539,7 @@
       </div>
       <div class="hudGroup">
         <div class="pill">Zeit: <span id="timeText">01:30</span></div>
+        <div id="powerPill" class="pill">Zauber: <span id="powerText">-</span></div>
         <button id="endCozy" class="iconButton" type="button" title="Runde beenden" aria-label="Runde beenden">✓</button>
       </div>
       <div class="hudGroup right">
@@ -605,6 +613,17 @@
         baby: { label: "Baby", points: 20, asset: "baby", size: 84, speed: 168, hit: 0.92 },
         golden: { label: "Gold", points: 50, asset: "golden", size: 116, speed: 178, hit: 0.84 },
         sleepy: { label: "Schläfrig", points: 15, asset: "sleepy", size: 130, speed: 92, hit: 0.82 }
+      };
+
+      const HAZARDS = {
+        butterfly: { label: "Glitzer-Schmetterling", penalty: 15, size: 54, speed: 64 },
+        sleepyStar: { label: "Schlafsternchen", penalty: 10, size: 48, speed: 38 }
+      };
+
+      const POWERUPS = {
+        glitterClock: { label: "Glitzeruhr", duration: 0, size: 58, color: "#88e5d3" },
+        rainbowRush: { label: "Regenbogenrausch", duration: 10, size: 62, color: "#ff8fc8" },
+        heartMagnet: { label: "Herzmagnet", duration: 10, size: 58, color: "#ffd36e" }
       };
 
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -719,6 +738,18 @@
           [523, 659, 784, 1046].forEach((note, i) => this.tone(note, 0.18, "sine", 0.045, i * 0.11));
         }
 
+        hazard() {
+          this.tone(260, 0.12, "sine", 0.025);
+          this.tone(390, 0.1, "triangle", 0.018, 0.08);
+        }
+
+        powerUp(type) {
+          const base = type === "rainbowRush" ? 784 : type === "heartMagnet" ? 660 : 587;
+          this.tone(base, 0.1, "sine", 0.045);
+          this.tone(base * 1.5, 0.16, "triangle", 0.04, 0.06);
+          this.tone(base * 2, 0.2, "sine", 0.026, 0.15);
+        }
+
         cozy() {
           this.tone(440, 0.16, "sine", 0.026);
           this.tone(660, 0.22, "triangle", 0.022, 0.12);
@@ -777,8 +808,9 @@
 
         contains(px, py) {
           const mobileBoost = this.game.isMobile ? 1.18 : 1;
-          const hw = this.w * this.type.hit * mobileBoost;
-          const hh = this.h * 0.62 * mobileBoost;
+          const magnetBoost = this.game.isPowerActive("heartMagnet") ? 1.35 : 1;
+          const hw = this.w * this.type.hit * mobileBoost * magnetBoost;
+          const hh = this.h * 0.62 * mobileBoost * magnetBoost;
           return px >= this.x - hw * 0.08 && px <= this.x + hw && py >= this.y - hh * 0.16 && py <= this.y + hh;
         }
 
@@ -835,6 +867,82 @@
           } else {
             drawStar(ctx, this.size);
           }
+          ctx.restore();
+        }
+      }
+
+      class Hazard {
+        constructor(game, typeKey) {
+          this.game = game;
+          this.typeKey = typeKey;
+          this.type = HAZARDS[typeKey];
+          this.age = 0;
+          this.dead = false;
+          this.dir = Math.random() > 0.5 ? 1 : -1;
+          this.size = this.type.size * rand(0.88, 1.18);
+          this.x = this.dir > 0 ? -this.size - rand(20, 120) : game.width + this.size + rand(20, 120);
+          this.baseY = rand(game.height * 0.24, game.height * 0.72);
+          this.y = this.baseY;
+          this.speed = this.type.speed * game.mode.speed * rand(0.84, 1.18);
+          this.wave = typeKey === "sleepyStar" ? rand(10, 24) : rand(18, 42);
+          this.waveSpeed = typeKey === "sleepyStar" ? rand(1.1, 1.8) : rand(2.0, 3.4);
+        }
+
+        update(dt) {
+          this.age += dt;
+          this.x += this.dir * this.speed * dt;
+          this.y = this.baseY + Math.sin(this.age * this.waveSpeed) * this.wave;
+          const beyond = this.dir > 0 ? this.x > this.game.width + this.size * 2 : this.x < -this.size * 2;
+          if (beyond) this.dead = true;
+        }
+
+        contains(px, py) {
+          const boost = this.game.isMobile ? 1.12 : 1;
+          const radius = this.size * 0.58 * boost;
+          return Math.hypot(px - this.x, py - this.y) <= radius;
+        }
+
+        draw(ctx) {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.scale(this.dir, 1);
+          if (this.typeKey === "sleepyStar") drawSleepingStar(ctx, this.size, this.age);
+          else drawGlitterButterfly(ctx, this.size, this.age);
+          ctx.restore();
+        }
+      }
+
+      class PowerUp {
+        constructor(game, typeKey) {
+          this.game = game;
+          this.typeKey = typeKey;
+          this.type = POWERUPS[typeKey];
+          this.age = 0;
+          this.dead = false;
+          this.size = this.type.size;
+          this.x = rand(this.size * 1.4, game.width - this.size * 1.4);
+          this.y = rand(game.height * 0.25, game.height * 0.68);
+          this.vx = rand(-18, 18);
+          this.baseY = this.y;
+        }
+
+        update(dt) {
+          this.age += dt;
+          this.x += this.vx * dt;
+          this.y = this.baseY + Math.sin(this.age * 2.4) * 10;
+          if (this.age > 8 || this.x < -this.size || this.x > this.game.width + this.size) this.dead = true;
+        }
+
+        contains(px, py) {
+          const radius = this.size * (this.game.isMobile ? 0.78 : 0.66);
+          return Math.hypot(px - this.x, py - this.y) <= radius;
+        }
+
+        draw(ctx) {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(Math.sin(this.age * 2) * 0.1);
+          drawPowerUp(ctx, this.typeKey, this.size, this.age);
           ctx.restore();
         }
       }
@@ -921,6 +1029,8 @@
           this.dpr = 1;
           this.last = performance.now();
           this.unicorns = [];
+          this.hazards = [];
+          this.powerUps = [];
           this.particles = [];
           this.effects = [];
           this.texts = [];
@@ -930,9 +1040,15 @@
           this.lastHit = -99;
           this.timeLeft = 90;
           this.elapsed = 0;
+          this.bonusTime = 0;
           this.spawnClock = 0;
+          this.hazardClock = 0;
+          this.powerClock = 0;
+          this.activePowers = { rainbowRush: 0, heartMagnet: 0 };
           this.missMercy = 0;
           this.hits = { standard: 0, baby: 0, golden: 0, sleepy: 0 };
+          this.hazardHits = { butterfly: 0, sleepyStar: 0 };
+          this.powerHits = { glitterClock: 0, rainbowRush: 0, heartMagnet: 0 };
           this.isMobile = matchMedia("(hover: none), (pointer: coarse)").matches;
           this.bindUI();
           this.resize();
@@ -950,8 +1066,10 @@
             timeText: document.getElementById("timeText"),
             modeText: document.getElementById("modeText"),
             comboText: document.getElementById("comboText"),
+            powerText: document.getElementById("powerText"),
             scorePill: document.getElementById("scorePill"),
             comboPill: document.getElementById("comboPill"),
+            powerPill: document.getElementById("powerPill"),
             soundHud: document.getElementById("soundHud"),
             menuSound: document.getElementById("menuSound"),
             endCozy: document.getElementById("endCozy"),
@@ -1020,6 +1138,8 @@
 
         resetRound() {
           this.unicorns = [];
+          this.hazards = [];
+          this.powerUps = [];
           this.particles = [];
           this.effects = [];
           this.texts = [];
@@ -1028,10 +1148,16 @@
           this.bestCombo = 0;
           this.lastHit = -99;
           this.elapsed = 0;
+          this.bonusTime = 0;
           this.timeLeft = this.mode.duration;
           this.spawnClock = 0.18;
+          this.hazardClock = this.mode.key === "arcade" ? 2.4 : 4.0;
+          this.powerClock = 5.5;
+          this.activePowers = { rainbowRush: 0, heartMagnet: 0 };
           this.missMercy = 0;
           this.hits = { standard: 0, baby: 0, golden: 0, sleepy: 0 };
+          this.hazardHits = { butterfly: 0, sleepyStar: 0 };
+          this.powerHits = { glitterClock: 0, rainbowRush: 0, heartMagnet: 0 };
         }
 
         restart() {
@@ -1094,6 +1220,19 @@
           this.effects.push(new Effect(x, y, "beam", this.assets, 0.86));
           this.createTapParticles(x, y, false);
 
+          let powerHit = null;
+          for (let i = this.powerUps.length - 1; i >= 0; i--) {
+            if (this.powerUps[i].contains(x, y)) {
+              powerHit = this.powerUps[i];
+              break;
+            }
+          }
+
+          if (powerHit) {
+            this.collectPowerUp(powerHit, x, y);
+            return;
+          }
+
           let hit = null;
           for (let i = this.unicorns.length - 1; i >= 0; i--) {
             if (this.unicorns[i].contains(x, y)) {
@@ -1105,8 +1244,51 @@
           if (hit) {
             this.hitUnicorn(hit, x, y);
           } else {
-            this.miss(x, y);
+            let hazardHit = null;
+            for (let i = this.hazards.length - 1; i >= 0; i--) {
+              if (this.hazards[i].contains(x, y)) {
+                hazardHit = this.hazards[i];
+                break;
+              }
+            }
+            if (hazardHit) this.hitHazard(hazardHit, x, y);
+            else this.miss(x, y);
           }
+        }
+
+        collectPowerUp(powerUp, x, y) {
+          powerUp.dead = true;
+          this.powerHits[powerUp.typeKey]++;
+          if (powerUp.typeKey === "glitterClock") {
+            this.bonusTime += 10;
+            this.timeLeft += 10;
+            this.texts.push(new FloatingText(x, y - 18, "+10 Sekunden", "#228f9d"));
+          } else {
+            this.activePowers[powerUp.typeKey] = Math.max(this.activePowers[powerUp.typeKey], POWERUPS[powerUp.typeKey].duration);
+            this.texts.push(new FloatingText(x, y - 18, POWERUPS[powerUp.typeKey].label, POWERUPS[powerUp.typeKey].color));
+          }
+          this.effects.push(new Effect(x, y, "sparkle", this.assets, 1.08));
+          this.createPowerParticles(x, y, powerUp.typeKey);
+          this.sound.powerUp(powerUp.typeKey);
+          this.updateHUD();
+        }
+
+        hitHazard(hazard, x, y) {
+          hazard.dead = true;
+          this.hazardHits[hazard.typeKey]++;
+          const penalty = hazard.type.penalty;
+          this.score = Math.max(0, this.score - penalty);
+          this.combo = this.mode.cozyMisses ? Math.max(0, this.combo - 2) : 0;
+          this.missMercy = 0;
+          this.texts.push(new FloatingText(x, y - 12, `-${penalty} Vorsicht!`, "#80618f"));
+          this.createHazardParticles(x, y, hazard.typeKey);
+          this.sound.hazard();
+          this.ui.scorePill.classList.remove("scorePop");
+          this.ui.comboPill.classList.remove("comboPulse");
+          void this.ui.scorePill.offsetWidth;
+          this.ui.scorePill.classList.add("scorePop");
+          this.ui.comboPill.classList.add("comboPulse");
+          this.updateHUD();
         }
 
         hitUnicorn(unicorn, x, y) {
@@ -1116,7 +1298,9 @@
           this.lastHit = now;
           this.bestCombo = Math.max(this.bestCombo, this.combo);
           this.missMercy = 0;
-          const multiplier = this.combo >= 10 ? 2 : this.combo >= 6 ? 1.5 : this.combo >= 3 ? 1.25 : 1;
+          const comboMultiplier = this.combo >= 10 ? 2 : this.combo >= 6 ? 1.5 : this.combo >= 3 ? 1.25 : 1;
+          const powerMultiplier = this.isPowerActive("rainbowRush") ? 2 : 1;
+          const multiplier = comboMultiplier * powerMultiplier;
           const gained = Math.round(unicorn.type.points * multiplier);
           this.score += gained;
           this.hits[unicorn.typeKey]++;
@@ -1175,6 +1359,42 @@
           }
         }
 
+        createHazardParticles(x, y, type) {
+          const palette = type === "butterfly" ? ["#b99cff", "#ffb6df", "#fff", "#88e5d3"] : ["#fff8c6", "#d7c5ff", "#fff", "#9bdcff"];
+          for (let i = 0; i < 18; i++) {
+            this.particles.push(new Particle(x, y, {
+              color: palette[Math.floor(rand(0, palette.length))],
+              life: rand(0.42, 0.82),
+              size: rand(3, 7),
+              vx: rand(-110, 110),
+              vy: rand(-120, 60),
+              shape: "star"
+            }));
+          }
+        }
+
+        createPowerParticles(x, y, type) {
+          const palette = type === "rainbowRush"
+            ? ["#ff8fc8", "#ffd36e", "#88e5d3", "#9bdcff", "#b99cff"]
+            : type === "heartMagnet"
+              ? ["#ff8fc8", "#ffffff", "#ffd36e"]
+              : ["#88e5d3", "#ffffff", "#9bdcff"];
+          for (let i = 0; i < 28; i++) {
+            this.particles.push(new Particle(x, y, {
+              color: palette[Math.floor(rand(0, palette.length))],
+              life: rand(0.55, 1.1),
+              size: rand(4, 10),
+              vx: rand(-150, 150),
+              vy: rand(-160, 70),
+              shape: type === "heartMagnet" ? "heart" : "star"
+            }));
+          }
+        }
+
+        isPowerActive(type) {
+          return (this.activePowers && this.activePowers[type] > 0);
+        }
+
         difficulty() {
           const progress = clamp(this.elapsed / this.mode.duration, 0, 1);
           return this.mode.key === "arcade" ? 1 + progress * 0.34 : 1 + progress * 0.08;
@@ -1206,6 +1426,21 @@
           }
         }
 
+        spawnHazard() {
+          const maxHazards = this.mode.key === "arcade" ? 4 : 3;
+          if (this.hazards.length >= maxHazards) return;
+          const starChance = this.mode.key === "arcade" ? 0.42 : 0.55;
+          const type = Math.random() < starChance ? "sleepyStar" : "butterfly";
+          this.hazards.push(new Hazard(this, type));
+        }
+
+        spawnPowerUp() {
+          if (this.powerUps.length >= 2) return;
+          const roll = Math.random();
+          const type = roll < 0.34 ? "glitterClock" : roll < 0.67 ? "rainbowRush" : "heartMagnet";
+          this.powerUps.push(new PowerUp(this, type));
+        }
+
         frame(time) {
           const dt = Math.min(0.033, (time - this.last) / 1000 || 0);
           this.last = time;
@@ -1217,14 +1452,31 @@
 
         update(dt) {
           this.elapsed += dt;
-          this.timeLeft = Math.max(0, this.mode.duration - this.elapsed);
+          Object.keys(this.activePowers).forEach(key => {
+            this.activePowers[key] = Math.max(0, this.activePowers[key] - dt);
+          });
+          this.timeLeft = Math.max(0, this.mode.duration + this.bonusTime - this.elapsed);
           this.spawnClock -= dt;
+          this.hazardClock -= dt;
+          this.powerClock -= dt;
           if (this.spawnClock <= 0) {
             this.spawn();
             this.spawnClock = this.spawnInterval() * rand(0.72, 1.24);
           }
+          if (this.hazardClock <= 0) {
+            this.spawnHazard();
+            this.hazardClock = this.mode.key === "arcade" ? rand(2.6, 4.2) : rand(4.0, 6.4);
+          }
+          if (this.powerClock <= 0) {
+            this.spawnPowerUp();
+            this.powerClock = this.mode.key === "arcade" ? rand(8.0, 12.5) : rand(10.0, 15.0);
+          }
           this.unicorns.forEach(u => u.update(dt));
+          this.hazards.forEach(h => h.update(dt));
+          this.powerUps.forEach(p => p.update(dt));
           this.unicorns = this.unicorns.filter(u => !u.dead);
+          this.hazards = this.hazards.filter(h => !h.dead);
+          this.powerUps = this.powerUps.filter(p => !p.dead);
           this.updateCollections(dt);
           if (this.combo > 0 && this.elapsed - this.lastHit > 2.15) {
             this.combo = 0;
@@ -1264,12 +1516,16 @@
 
         populateGameOver(high) {
           const totalHits = Object.values(this.hits).reduce((a, b) => a + b, 0);
+          const totalHazards = Object.values(this.hazardHits).reduce((a, b) => a + b, 0);
+          const totalPowerups = Object.values(this.powerHits).reduce((a, b) => a + b, 0);
           document.getElementById("finalScore").textContent = fmt(this.score);
           document.getElementById("finalHighscore").textContent = fmt(high);
           document.getElementById("finalCombo").textContent = `x${this.bestCombo}`;
           document.getElementById("finalHits").textContent = fmt(totalHits);
           document.getElementById("finalMode").textContent = this.mode.uiName;
           document.getElementById("finalTypes").textContent = `${this.hits.standard} / ${this.hits.baby} / ${this.hits.golden} / ${this.hits.sleepy}`;
+          document.getElementById("finalPowerups").textContent = fmt(totalPowerups);
+          document.getElementById("finalHazards").textContent = fmt(totalHazards);
           document.getElementById("ratingTitle").textContent = this.rating();
         }
 
@@ -1287,6 +1543,11 @@
           this.ui.modeText.textContent = this.mode.label;
           this.ui.timeText.textContent = formatTime(this.timeLeft);
           this.ui.comboText.textContent = this.combo >= 10 ? `x${this.combo} Herzsturm!` : this.combo >= 6 ? `x${this.combo} Regenbogenrausch!` : this.combo >= 3 ? `x${this.combo} Glitzer-Serie!` : `x${this.combo}`;
+          const active = [];
+          if (this.isPowerActive("rainbowRush")) active.push(`Rausch ${Math.ceil(this.activePowers.rainbowRush)}s`);
+          if (this.isPowerActive("heartMagnet")) active.push(`Magnet ${Math.ceil(this.activePowers.heartMagnet)}s`);
+          this.ui.powerText.textContent = active.length ? active.join(" + ") : "-";
+          this.ui.powerPill.classList.toggle("powerActive", active.length > 0);
         }
 
         draw(t) {
@@ -1294,6 +1555,8 @@
           ctx.clearRect(0, 0, this.width, this.height);
           this.drawBackground(ctx, t);
           this.drawForegroundClouds(ctx, t, false);
+          this.powerUps.forEach(p => p.draw(ctx));
+          this.hazards.forEach(h => h.draw(ctx));
           this.unicorns
             .slice()
             .sort((a, b) => a.layer - b.layer || a.y - b.y)
@@ -1423,6 +1686,132 @@
           ctx.fillStyle = c;
           drawStar(ctx, size * 0.12, Math.cos(i * 2.1) * size * 0.45, Math.sin(i * 2.1) * size * 0.35);
         });
+      }
+
+      function drawGlitterButterfly(ctx, size, age) {
+        const flap = Math.sin(age * 10) * 0.22;
+        ctx.save();
+        ctx.shadowColor = "rgba(255,143,200,0.52)";
+        ctx.shadowBlur = 16;
+        ctx.rotate(Math.sin(age * 2.4) * 0.08);
+        ctx.fillStyle = "rgba(255,255,255,0.72)";
+        ctx.beginPath();
+        ctx.ellipse(-size * 0.18, -size * 0.05, size * 0.28, size * (0.38 + flap), -0.74, 0, Math.PI * 2);
+        ctx.ellipse(size * 0.18, -size * 0.05, size * 0.28, size * (0.38 - flap), 0.74, 0, Math.PI * 2);
+        ctx.fill();
+        const wing = ctx.createLinearGradient(-size * 0.42, -size * 0.38, size * 0.42, size * 0.36);
+        wing.addColorStop(0, "#ffb6df");
+        wing.addColorStop(0.5, "#b99cff");
+        wing.addColorStop(1, "#88e5d3");
+        ctx.fillStyle = wing;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.ellipse(-size * 0.2, -size * 0.06, size * 0.23, size * (0.31 + flap), -0.78, 0, Math.PI * 2);
+        ctx.ellipse(size * 0.2, -size * 0.06, size * 0.23, size * (0.31 - flap), 0.78, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#fff5fb";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 0.09, size * 0.34, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#7f6291";
+        ctx.lineWidth = Math.max(1.2, size * 0.035);
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.03, -size * 0.25);
+        ctx.quadraticCurveTo(-size * 0.18, -size * 0.47, -size * 0.32, -size * 0.38);
+        ctx.moveTo(size * 0.03, -size * 0.25);
+        ctx.quadraticCurveTo(size * 0.18, -size * 0.47, size * 0.32, -size * 0.38);
+        ctx.stroke();
+        ctx.fillStyle = "#fff";
+        drawStar(ctx, size * 0.08, -size * 0.38, -size * 0.25);
+        drawStar(ctx, size * 0.07, size * 0.36, size * 0.19);
+        ctx.restore();
+      }
+
+      function drawSleepingStar(ctx, size, age) {
+        ctx.save();
+        ctx.rotate(Math.sin(age * 1.7) * 0.12);
+        ctx.shadowColor = "rgba(255,211,110,0.55)";
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = "#fff4a8";
+        drawStar(ctx, size * 0.45);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#fff9d7";
+        drawStar(ctx, size * 0.31);
+        ctx.strokeStyle = "#7f6291";
+        ctx.lineWidth = Math.max(1.4, size * 0.035);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(-size * 0.12, -size * 0.05, size * 0.07, 0.15, Math.PI - 0.15);
+        ctx.arc(size * 0.13, -size * 0.05, size * 0.07, 0.15, Math.PI - 0.15);
+        ctx.stroke();
+        ctx.fillStyle = "#b99cff";
+        ctx.font = `900 ${Math.max(11, size * 0.23)}px ui-rounded, system-ui, sans-serif`;
+        ctx.fillText("Z", size * 0.18, -size * 0.28 - Math.sin(age * 2) * 3);
+        ctx.restore();
+      }
+
+      function drawPowerUp(ctx, type, size, age) {
+        const pulse = 1 + Math.sin(age * 5) * 0.05;
+        ctx.save();
+        ctx.scale(pulse, pulse);
+        ctx.shadowColor = "rgba(255,255,255,0.9)";
+        ctx.shadowBlur = 18;
+        const grad = ctx.createRadialGradient(0, 0, size * 0.12, 0, 0, size * 0.58);
+        grad.addColorStop(0, "#ffffff");
+        grad.addColorStop(0.7, POWERUPS[type].color);
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.56, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(255,255,255,0.88)";
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#7f6291";
+        ctx.lineWidth = Math.max(2, size * 0.045);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        if (type === "glitterClock") {
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 0.23, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, -size * 0.15);
+          ctx.moveTo(0, 0);
+          ctx.lineTo(size * 0.12, size * 0.05);
+          ctx.stroke();
+          ctx.fillStyle = "#88e5d3";
+          drawStar(ctx, size * 0.09, size * 0.28, -size * 0.22);
+        } else if (type === "rainbowRush") {
+          const colors = ["#ff8fc8", "#ffd36e", "#88e5d3", "#9bdcff", "#b99cff"];
+          ctx.lineWidth = Math.max(3, size * 0.055);
+          colors.forEach((color, i) => {
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.arc(0, size * 0.11, size * (0.16 + i * 0.045), Math.PI * 1.08, Math.PI * 1.92);
+            ctx.stroke();
+          });
+          ctx.fillStyle = "#ffd36e";
+          drawStar(ctx, size * 0.11, size * 0.18, -size * 0.2);
+        } else {
+          ctx.fillStyle = "#ff8fc8";
+          drawHeart(ctx, size * 0.45);
+          ctx.strokeStyle = "#ffd36e";
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 0.31, -0.8, 0.8);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 0.31, Math.PI - 0.8, Math.PI + 0.8);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#fff";
+        drawStar(ctx, size * 0.07, -size * 0.31, -size * 0.29);
+        drawStar(ctx, size * 0.055, size * 0.32, size * 0.27);
+        ctx.restore();
       }
 
       function drawFallbackUnicorn(ctx, type, w, h) {
