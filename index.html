@@ -250,6 +250,43 @@
       text-align: left;
     }
 
+    .placeGrid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin: 14px 0 0;
+    }
+
+    .placeButton {
+      min-height: 74px;
+      padding: 9px 7px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.74);
+      background: rgba(255,255,255,0.58);
+      color: var(--ink-soft);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 8px 18px rgba(126, 77, 153, 0.1);
+      cursor: pointer;
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: 800;
+      transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+    }
+
+    .placeButton b {
+      display: block;
+      color: var(--ink);
+      font-size: 12px;
+      margin-bottom: 4px;
+      font-weight: 950;
+    }
+
+    .placeButton:hover,
+    .placeButton.selected {
+      transform: translateY(-1px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,238,251,0.88));
+      box-shadow: 0 12px 24px rgba(126, 77, 153, 0.17), inset 0 -2px 0 rgba(174, 97, 169, 0.12);
+    }
+
     .guideCard {
       min-height: 112px;
       padding: 10px;
@@ -440,6 +477,12 @@
       color: var(--ink);
     }
 
+    #finalMedals {
+      display: block;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
     #ratingTitle {
       margin: 8px 0 4px;
       color: #d8509e;
@@ -494,6 +537,14 @@
       .guideGrid {
         grid-template-columns: 1fr;
       }
+
+      .placeGrid {
+        grid-template-columns: 1fr;
+      }
+
+      .placeButton {
+        min-height: 52px;
+      }
     }
 
     @media (hover: none) {
@@ -545,6 +596,7 @@
             <p>Glitzeruhr: +10 Sekunden</p>
             <p>Regenbogenrausch: doppelte Punkte</p>
             <p>Herzmagnet: größere Trefferzone</p>
+            <p>Chaos-Regenbogen: x3 Punkte, aber doppeltes Risiko</p>
           </div>
           <div class="guideCard">
             <b>Bitte beschützen</b>
@@ -552,6 +604,13 @@
             <p>Schlafsternchen: -10 Punkte</p>
             <p>Diese kleinen Wesen lieber vorbeischweben lassen.</p>
           </div>
+        </div>
+        <div class="placeGrid" aria-label="Magischen Ort wählen">
+          <button class="placeButton selected" type="button" data-place="sparkleValley"><b>Glitzertal</b>Goldregen: mehr Gold-Einhörner.</button>
+          <button class="placeButton" type="button" data-place="cloudGrove"><b>Wolkenhain</b>Wolkenwirbel: Ziele treiben schneller.</button>
+          <button class="placeButton" type="button" data-place="moonMeadow"><b>Mondwiese</b>Schlaflied: mehr Schlafsternchen.</button>
+          <button class="placeButton" type="button" data-place="crystalBay"><b>Kristallbucht</b>Kristallflut: mehr Zauber.</button>
+          <button class="placeButton" type="button" data-place="starFestival"><b>Sternenfest</b>Festparade: Baby- und Serienbonus.</button>
         </div>
         <div class="row">
           <button id="menuSound" class="smallButton" type="button">Ton an</button>
@@ -581,9 +640,11 @@
           <div class="stat"><b>Beste Serie</b><span id="finalCombo">x0</span></div>
           <div class="stat"><b>Getroffene Einhörner</b><span id="finalHits">0</span></div>
           <div class="stat"><b>Modus</b><span id="finalMode">Arcade</span></div>
+          <div class="stat"><b>Ort</b><span id="finalPlace">Glitzertal</span></div>
           <div class="stat"><b>Typen</b><span id="finalTypes">0 / 0 / 0 / 0</span></div>
           <div class="stat"><b>Zauber gesammelt</b><span id="finalPowerups">0</span></div>
           <div class="stat"><b>Vorsichtstreffer</b><span id="finalHazards">0</span></div>
+          <div class="stat"><b>Medaillen</b><span id="finalMedals">-</span></div>
         </div>
         <div class="row">
           <button id="playAgain" class="smallButton" type="button">Nochmal spielen</button>
@@ -596,6 +657,7 @@
       <div class="hudGroup">
         <div id="scorePill" class="pill">Punkte: <span id="scoreText">0</span></div>
         <div class="pill">Modus: <span id="modeText">Arcade</span></div>
+        <div class="pill">Ort: <span id="placeText">Glitzertal</span></div>
       </div>
       <div class="hudGroup">
         <div class="pill">Zeit: <span id="timeText">01:30</span></div>
@@ -630,6 +692,10 @@
 
       const ASSETS = {
         background: "assets/background_fairy_meadow.webp",
+        cloudGrove: "assets/background_cloud_grove.webp",
+        moonMeadow: "assets/background_moon_meadow.webp",
+        crystalBay: "assets/background_crystal_bay.webp",
+        starFestival: "assets/background_star_festival.webp",
         logo: "assets/ui_logo.webp",
         standard: "assets/unicorn_standard.webp",
         baby: "assets/unicorn_baby.webp",
@@ -683,7 +749,51 @@
       const POWERUPS = {
         glitterClock: { label: "Glitzeruhr", duration: 0, visibleFor: 4.8, size: 58, color: "#88e5d3" },
         rainbowRush: { label: "Regenbogenrausch", duration: 10, visibleFor: 4.8, size: 62, color: "#ff8fc8" },
-        heartMagnet: { label: "Herzmagnet", duration: 10, visibleFor: 4.8, size: 58, color: "#ffd36e" }
+        heartMagnet: { label: "Herzmagnet", duration: 10, visibleFor: 4.8, size: 58, color: "#ffd36e" },
+        chaosRainbow: { label: "Chaos-Regenbogen", duration: 6, visibleFor: 4.2, size: 64, color: "#ff72b8" }
+      };
+
+      const PLACES = {
+        sparkleValley: {
+          label: "Glitzertal",
+          asset: "background",
+          eventName: "Goldregen",
+          eventText: "Goldregen! Gold-Einhörner erscheinen häufiger.",
+          weights: { standard: 50, baby: 22, golden: 9, sleepy: 19 },
+          hazards: { butterfly: 58, sleepyStar: 42 }
+        },
+        cloudGrove: {
+          label: "Wolkenhain",
+          asset: "cloudGrove",
+          eventName: "Wolkenwirbel",
+          eventText: "Wolkenwirbel! Alles treibt kurz schneller.",
+          weights: { standard: 46, baby: 25, golden: 5, sleepy: 24 },
+          hazards: { butterfly: 68, sleepyStar: 32 }
+        },
+        moonMeadow: {
+          label: "Mondwiese",
+          asset: "moonMeadow",
+          eventName: "Schlaflied",
+          eventText: "Schlaflied! Schlafsternchen und Sleepy-Einhörner gleiten vorbei.",
+          weights: { standard: 32, baby: 16, golden: 4, sleepy: 48 },
+          hazards: { butterfly: 28, sleepyStar: 72 }
+        },
+        crystalBay: {
+          label: "Kristallbucht",
+          asset: "crystalBay",
+          eventName: "Kristallflut",
+          eventText: "Kristallflut! Zauber-Power-ups tauchen öfter auf.",
+          weights: { standard: 44, baby: 24, golden: 6, sleepy: 26 },
+          hazards: { butterfly: 52, sleepyStar: 48 }
+        },
+        starFestival: {
+          label: "Sternenfest",
+          asset: "starFestival",
+          eventName: "Festparade",
+          eventText: "Festparade! Baby-Einhörner und Serienboni funkeln heller.",
+          weights: { standard: 38, baby: 38, golden: 7, sleepy: 17 },
+          hazards: { butterfly: 62, sleepyStar: 38 }
+        }
       };
 
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -835,6 +945,8 @@
           this.baseY = rand(minY, maxY);
           this.y = this.baseY;
           this.speed = this.type.speed * game.mode.speed * rand(0.88, 1.22) * game.difficulty();
+          if (game.eventActive?.key === "cloudGrove") this.speed *= 1.55;
+          if (game.eventActive?.key === "lucky") this.speed *= 0.92;
           this.wave = rand(16, 44);
           this.waveSpeed = rand(1.6, 3.2);
           this.layer = rand(0, 1);
@@ -945,6 +1057,7 @@
           this.y = this.baseY;
           const modeSpeed = game.mode.key === "arcade" ? 1.08 : 0.92;
           this.speed = this.type.speed * modeSpeed * rand(0.9, 1.18);
+          if (game.eventActive?.key === "cloudGrove") this.speed *= 1.65;
           this.wave = typeKey === "sleepyStar" ? rand(10, 24) : rand(18, 42);
           this.waveSpeed = typeKey === "sleepyStar" ? rand(1.1, 1.8) : rand(2.0, 3.4);
         }
@@ -1087,6 +1200,8 @@
           this.sound = new SoundManager();
           this.state = STATES.MENU;
           this.mode = MODES.arcade;
+          this.placeKey = "sparkleValley";
+          this.place = PLACES.sparkleValley;
           this.width = 0;
           this.height = 0;
           this.dpr = 1;
@@ -1107,11 +1222,17 @@
           this.spawnClock = 0;
           this.hazardClock = 0;
           this.powerClock = 0;
-          this.activePowers = { rainbowRush: 0, heartMagnet: 0 };
+          this.eventClock = 0;
+          this.eventWarningClock = 0;
+          this.eventActive = null;
+          this.luckyClock = 0;
+          this.luckySeen = false;
+          this.activePowers = { rainbowRush: 0, heartMagnet: 0, chaosRainbow: 0 };
           this.missMercy = 0;
           this.hits = { standard: 0, baby: 0, golden: 0, sleepy: 0 };
           this.hazardHits = { butterfly: 0, sleepyStar: 0 };
-          this.powerHits = { glitterClock: 0, rainbowRush: 0, heartMagnet: 0 };
+          this.powerHits = { glitterClock: 0, rainbowRush: 0, heartMagnet: 0, chaosRainbow: 0 };
+          this.medals = new Set();
           this.isMobile = matchMedia("(hover: none), (pointer: coarse)").matches;
           this.bindUI();
           this.resize();
@@ -1128,6 +1249,7 @@
             scoreText: document.getElementById("scoreText"),
             timeText: document.getElementById("timeText"),
             modeText: document.getElementById("modeText"),
+            placeText: document.getElementById("placeText"),
             comboText: document.getElementById("comboText"),
             powerText: document.getElementById("powerText"),
             scorePill: document.getElementById("scorePill"),
@@ -1148,6 +1270,9 @@
 
           document.getElementById("arcadeStart").addEventListener("click", () => this.start("arcade"));
           document.getElementById("cozyStart").addEventListener("click", () => this.start("cozy"));
+          document.querySelectorAll("[data-place]").forEach(button => {
+            button.addEventListener("click", () => this.selectPlace(button.dataset.place));
+          });
           document.getElementById("pauseGame").addEventListener("click", () => this.pause());
           document.getElementById("resumeGame").addEventListener("click", () => this.resume());
           document.getElementById("restartHud").addEventListener("click", () => this.restart());
@@ -1169,6 +1294,15 @@
             }
           });
           this.updateSoundButtons();
+          this.selectPlace(this.placeKey);
+        }
+
+        selectPlace(placeKey) {
+          this.placeKey = placeKey;
+          this.place = PLACES[placeKey];
+          document.querySelectorAll("[data-place]").forEach(button => {
+            button.classList.toggle("selected", button.dataset.place === placeKey);
+          });
         }
 
         resize() {
@@ -1216,11 +1350,17 @@
           this.spawnClock = 0.18;
           this.hazardClock = this.mode.key === "arcade" ? 2.4 : 4.0;
           this.powerClock = 5.5;
-          this.activePowers = { rainbowRush: 0, heartMagnet: 0 };
+          this.eventClock = 13.5;
+          this.eventWarningClock = 0;
+          this.eventActive = null;
+          this.luckyClock = rand(48, 88);
+          this.luckySeen = false;
+          this.activePowers = { rainbowRush: 0, heartMagnet: 0, chaosRainbow: 0 };
           this.missMercy = 0;
           this.hits = { standard: 0, baby: 0, golden: 0, sleepy: 0 };
           this.hazardHits = { butterfly: 0, sleepyStar: 0 };
-          this.powerHits = { glitterClock: 0, rainbowRush: 0, heartMagnet: 0 };
+          this.powerHits = { glitterClock: 0, rainbowRush: 0, heartMagnet: 0, chaosRainbow: 0 };
+          this.medals = new Set();
         }
 
         restart() {
@@ -1339,7 +1479,7 @@
         hitHazard(hazard, x, y) {
           hazard.dead = true;
           this.hazardHits[hazard.typeKey]++;
-          const penalty = hazard.type.penalty;
+          const penalty = hazard.type.penalty * (this.isPowerActive("chaosRainbow") ? 2 : 1);
           this.score = Math.max(0, this.score - penalty);
           this.combo = this.mode.cozyMisses ? Math.max(0, this.combo - 2) : 0;
           this.missMercy = 0;
@@ -1361,8 +1501,9 @@
           this.lastHit = now;
           this.bestCombo = Math.max(this.bestCombo, this.combo);
           this.missMercy = 0;
-          const comboMultiplier = this.combo >= 10 ? 2 : this.combo >= 6 ? 1.5 : this.combo >= 3 ? 1.25 : 1;
-          const powerMultiplier = this.isPowerActive("rainbowRush") ? 2 : 1;
+          let comboMultiplier = this.combo >= 10 ? 2 : this.combo >= 6 ? 1.5 : this.combo >= 3 ? 1.25 : 1;
+          if (this.eventActive?.key === "starFestival" && this.combo >= 3) comboMultiplier *= 1.2;
+          const powerMultiplier = this.isPowerActive("chaosRainbow") ? 3 : this.isPowerActive("rainbowRush") ? 2 : 1;
           const multiplier = comboMultiplier * powerMultiplier;
           const gained = Math.round(unicorn.type.points * multiplier);
           this.score += gained;
@@ -1372,6 +1513,7 @@
           this.createHitParticles(unicorn.x + unicorn.w * 0.5, unicorn.y + unicorn.h * 0.45, unicorn.typeKey);
           this.sound.hit(unicorn.typeKey);
           this.sound.combo(this.combo);
+          this.checkStreakComment();
           this.ui.scorePill.classList.remove("scorePop");
           this.ui.comboPill.classList.remove("comboPulse");
           void this.ui.scorePill.offsetWidth;
@@ -1458,6 +1600,16 @@
           return (this.activePowers && this.activePowers[type] > 0);
         }
 
+        createComment(text, color = "#d8509e") {
+          this.texts.push(new FloatingText(this.width / 2, Math.max(92, this.height * 0.18), text, color));
+        }
+
+        checkStreakComment() {
+          if (this.combo === 5) this.createComment("Schöne Glitzer-Serie!");
+          if (this.combo === 10) this.createComment("Regenbogenrausch im Herzen!");
+          if (this.combo === 15) this.createComment("Unglaublich sanft gezielt!");
+        }
+
         difficulty() {
           const progress = clamp(this.elapsed / this.mode.duration, 0, 1);
           return this.mode.key === "arcade" ? 1 + progress * 0.34 : 1 + progress * 0.08;
@@ -1470,7 +1622,7 @@
 
         spawn() {
           if (this.unicorns.length >= this.mode.maxUnicorns) return;
-          const weights = this.mode.weights;
+          const weights = this.unicornWeights();
           const total = Object.values(weights).reduce((a, b) => a + b, 0);
           let roll = rand(0, total);
           let chosen = "standard";
@@ -1489,10 +1641,33 @@
           }
         }
 
+        unicornWeights() {
+          const weights = { ...this.place.weights };
+          if (this.mode.key === "cozy") {
+            weights.standard *= 0.88;
+            weights.baby *= 0.82;
+            weights.golden *= 0.78;
+            weights.sleepy *= 1.42;
+          }
+          if (this.eventActive) {
+            if (this.eventActive.key === "sparkleValley") weights.golden += 34;
+            if (this.eventActive.key === "moonMeadow") weights.sleepy += 42;
+            if (this.eventActive.key === "starFestival") weights.baby += 40;
+            if (this.eventActive.key === "crystalBay") weights.golden += 8;
+            if (this.eventActive.key === "lucky") {
+              weights.golden += 30;
+              weights.baby += 20;
+            }
+          }
+          return weights;
+        }
+
         spawnHazard() {
           const maxHazards = this.mode.key === "arcade" ? 4 : 3;
           if (this.hazards.length >= maxHazards) return;
-          const starChance = this.mode.key === "arcade" ? 0.42 : 0.55;
+          const hazards = this.place.hazards;
+          let starChance = hazards.sleepyStar / (hazards.sleepyStar + hazards.butterfly);
+          if (this.eventActive?.key === "moonMeadow") starChance = 0.84;
           const type = Math.random() < starChance ? "sleepyStar" : "butterfly";
           this.hazards.push(new Hazard(this, type));
         }
@@ -1500,8 +1675,25 @@
         spawnPowerUp() {
           if (this.powerUps.length >= 2) return;
           const roll = Math.random();
-          const type = roll < 0.34 ? "glitterClock" : roll < 0.67 ? "rainbowRush" : "heartMagnet";
+          const type = roll < 0.27 ? "glitterClock" : roll < 0.53 ? "rainbowRush" : roll < 0.79 ? "heartMagnet" : "chaosRainbow";
           this.powerUps.push(new PowerUp(this, type));
+        }
+
+        beginPlaceEvent() {
+          this.eventActive = { key: this.placeKey, time: 8 };
+          this.eventWarningClock = 1.4;
+          this.createComment(this.place.eventText, "#d8509e");
+          if (this.placeKey === "crystalBay") this.powerClock = Math.min(this.powerClock, 0.4);
+          if (this.placeKey === "sparkleValley") this.spawnClock = Math.min(this.spawnClock, 0.25);
+        }
+
+        beginLuckyMoment() {
+          this.eventActive = { key: "lucky", time: 7 };
+          this.luckySeen = true;
+          this.luckyClock = 999;
+          this.powerClock = Math.min(this.powerClock, 0.35);
+          this.spawnClock = Math.min(this.spawnClock, 0.2);
+          this.createComment("Wunschmoment! Das Tal funkelt für dich.", "#d99a19");
         }
 
         frame(time) {
@@ -1518,21 +1710,37 @@
           Object.keys(this.activePowers).forEach(key => {
             this.activePowers[key] = Math.max(0, this.activePowers[key] - dt);
           });
+          if (this.eventActive) {
+            this.eventActive.time -= dt;
+            if (this.eventActive.time <= 0) this.eventActive = null;
+          }
           this.timeLeft = Math.max(0, this.mode.duration + this.bonusTime - this.elapsed);
           this.spawnClock -= dt;
           this.hazardClock -= dt;
           this.powerClock -= dt;
+          this.eventClock -= dt;
+          this.luckyClock -= dt;
           if (this.spawnClock <= 0) {
             this.spawn();
             this.spawnClock = this.spawnInterval() * rand(0.72, 1.24);
           }
           if (this.hazardClock <= 0) {
             this.spawnHazard();
-            this.hazardClock = this.mode.key === "arcade" ? rand(2.6, 4.2) : rand(4.0, 6.4);
+            const cloudBoost = this.eventActive?.key === "cloudGrove" ? 0.62 : 1;
+            const moonBoost = this.eventActive?.key === "moonMeadow" ? 0.72 : 1;
+            this.hazardClock = (this.mode.key === "arcade" ? rand(2.6, 4.2) : rand(4.0, 6.4)) * cloudBoost * moonBoost;
           }
           if (this.powerClock <= 0) {
             this.spawnPowerUp();
-            this.powerClock = this.mode.key === "arcade" ? rand(8.0, 12.5) : rand(10.0, 15.0);
+            const crystalBoost = this.eventActive?.key === "crystalBay" || this.eventActive?.key === "lucky" ? 0.38 : 1;
+            this.powerClock = (this.mode.key === "arcade" ? rand(8.0, 12.5) : rand(10.0, 15.0)) * crystalBoost;
+          }
+          if (this.eventClock <= 0 && !this.eventActive) {
+            this.beginPlaceEvent();
+            this.eventClock = rand(24, 34);
+          }
+          if (this.luckyClock <= 0 && !this.eventActive && Math.random() < 0.28) {
+            this.beginLuckyMoment();
           }
           this.unicorns.forEach(u => u.update(dt));
           this.hazards.forEach(h => h.update(dt));
@@ -1586,10 +1794,24 @@
           document.getElementById("finalCombo").textContent = `x${this.bestCombo}`;
           document.getElementById("finalHits").textContent = fmt(totalHits);
           document.getElementById("finalMode").textContent = this.mode.uiName;
+          document.getElementById("finalPlace").textContent = this.place.label;
           document.getElementById("finalTypes").textContent = `${this.hits.standard} / ${this.hits.baby} / ${this.hits.golden} / ${this.hits.sleepy}`;
           document.getElementById("finalPowerups").textContent = fmt(totalPowerups);
           document.getElementById("finalHazards").textContent = fmt(totalHazards);
+          document.getElementById("finalMedals").textContent = this.medalText(totalHits, totalPowerups, totalHazards);
           document.getElementById("ratingTitle").textContent = this.rating();
+        }
+
+        medalText(totalHits, totalPowerups, totalHazards) {
+          const medals = [];
+          if (totalHazards === 0 && totalHits > 0) medals.push("Sanfte Hand");
+          if (this.bestCombo >= 10) medals.push("Serienzauber");
+          if (this.hits.golden > 0) medals.push("Goldmoment");
+          if (totalPowerups >= 3) medals.push("Zaubersammler");
+          if (this.powerHits.glitterClock >= 2) medals.push("Zeitmagier");
+          if (this.powerHits.chaosRainbow > 0) medals.push("Chaosmut");
+          if (this.luckySeen) medals.push("Wunschkind");
+          return medals.length ? medals.join(", ") : "Noch keine";
         }
 
         rating() {
@@ -1604,11 +1826,13 @@
         updateHUD() {
           this.ui.scoreText.textContent = fmt(this.score);
           this.ui.modeText.textContent = this.mode.label;
+          this.ui.placeText.textContent = this.place.label;
           this.ui.timeText.textContent = formatTime(this.timeLeft);
           this.ui.comboText.textContent = this.combo >= 10 ? `x${this.combo} Herzsturm!` : this.combo >= 6 ? `x${this.combo} Regenbogenrausch!` : this.combo >= 3 ? `x${this.combo} Glitzer-Serie!` : `x${this.combo}`;
           const active = [];
           if (this.isPowerActive("rainbowRush")) active.push(`Rausch ${Math.ceil(this.activePowers.rainbowRush)}s`);
           if (this.isPowerActive("heartMagnet")) active.push(`Magnet ${Math.ceil(this.activePowers.heartMagnet)}s`);
+          if (this.isPowerActive("chaosRainbow")) active.push(`Chaos ${Math.ceil(this.activePowers.chaosRainbow)}s`);
           this.ui.powerText.textContent = active.length ? active.join(" + ") : "-";
           this.ui.powerPill.classList.toggle("powerActive", active.length > 0);
         }
@@ -1631,7 +1855,7 @@
         }
 
         drawBackground(ctx, t) {
-          const bg = this.assets.get("background");
+          const bg = this.assets.get(this.place.asset);
           if (bg) {
             drawCover(ctx, bg, 0, 0, this.width, this.height);
           } else {
@@ -1860,7 +2084,7 @@
           });
           ctx.fillStyle = "#ffd36e";
           drawStar(ctx, size * 0.11, size * 0.18, -size * 0.2);
-        } else {
+        } else if (type === "heartMagnet") {
           ctx.fillStyle = "#ff8fc8";
           drawHeart(ctx, size * 0.45);
           ctx.strokeStyle = "#ffd36e";
@@ -1870,6 +2094,19 @@
           ctx.beginPath();
           ctx.arc(0, 0, size * 0.31, Math.PI - 0.8, Math.PI + 0.8);
           ctx.stroke();
+        } else {
+          ctx.lineWidth = Math.max(3, size * 0.06);
+          ["#ff72b8", "#ffd36e", "#88e5d3", "#b99cff"].forEach((color, i) => {
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.arc(0, 0, size * (0.14 + i * 0.055), Math.PI * 0.15, Math.PI * 1.85);
+            ctx.stroke();
+          });
+          ctx.fillStyle = "#56315f";
+          ctx.font = `950 ${Math.max(16, size * 0.32)}px ui-rounded, system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("x3", 0, size * 0.03);
         }
         ctx.fillStyle = "#fff";
         drawStar(ctx, size * 0.07, -size * 0.31, -size * 0.29);
