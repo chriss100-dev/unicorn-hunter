@@ -391,6 +391,7 @@
     .guideItem p {
       display: flex;
       justify-content: space-between;
+      align-items: flex-start;
       gap: 10px;
       margin: 7px 0;
       color: var(--ink-soft);
@@ -401,6 +402,9 @@
 
     .guideItem span {
       flex: none;
+      max-width: 48%;
+      overflow-wrap: anywhere;
+      text-align: right;
       color: #d8509e;
       font-weight: 950;
     }
@@ -649,66 +653,70 @@
 
       .ruleStrip {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 6px;
-        margin: 8px 0 10px;
+        gap: 5px;
+        margin: 7px 0 8px;
       }
 
       .ruleChip {
-        min-height: 40px;
+        min-height: 58px;
         align-items: center;
-        padding: 7px 5px;
+        padding: 6px 5px;
         text-align: center;
-        font-size: 10px;
-        line-height: 1.1;
+        font-size: 9px;
+        line-height: 1.08;
       }
 
       .ruleChip b {
-        font-size: 11px;
+        font-size: 10px;
       }
 
       .ruleChip span {
-        display: none;
+        display: block;
+        margin-top: 3px;
       }
 
       .placeSelectGrid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        margin-top: 8px;
+        grid-template-columns: 1fr;
+        gap: 6px;
+        margin-top: 7px;
       }
 
       .placeCard {
-        min-height: 112px;
-        border-radius: 17px;
+        min-height: 66px;
+        border-radius: 16px;
       }
 
       .placeCard:last-child {
-        grid-column: 1 / -1;
-        min-height: 94px;
+        grid-column: auto;
+        min-height: 66px;
       }
 
       .placeCard::after {
-        background: linear-gradient(180deg, rgba(48, 22, 70, 0.04), rgba(48, 22, 70, 0.7));
+        background: linear-gradient(90deg, rgba(48, 22, 70, 0.74), rgba(48, 22, 70, 0.08));
       }
 
       .placeInfo {
-        top: auto;
-        right: 0;
-        padding: 42px 10px 10px;
-        background: linear-gradient(180deg, transparent, rgba(52, 25, 76, 0.78));
+        top: 0;
+        right: 24%;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        background: linear-gradient(90deg, rgba(52, 25, 76, 0.82), transparent);
       }
 
       .placeInfo b {
-        font-size: 15px;
+        font-size: 14px;
       }
 
       .placeInfo span {
-        margin-top: 4px;
-        font-size: 10px;
+        margin-top: 3px;
+        font-size: 9px;
         line-height: 1.15;
       }
 
       .placePanel .row {
-        margin-top: 9px;
+        margin-top: 8px;
       }
 
       .guidePanel {
@@ -735,6 +743,11 @@
       .guideItem p {
         margin: 5px 0;
         font-size: 12px;
+      }
+
+      .guideItem span {
+        max-width: 44%;
+        font-size: 11px;
       }
     }
 
@@ -786,9 +799,9 @@
         <p class="subtitle">Wähle deinen magischen Ort</p>
         <p class="copy"><span id="selectedModeText">Arcade-Modus</span> ist bereit. Jeder Ort hat ein eigenes Spezialevent.</p>
         <div class="ruleStrip" aria-label="Kurzanleitung">
-          <div class="ruleChip"><b>Treffen</b><span>Einhörner geben Punkte und Serien.</span></div>
-          <div class="ruleChip"><b>Sammeln</b><span>Zauber sind kurz sichtbar und stark.</span></div>
-          <div class="ruleChip"><b>Meiden</b><span>Schmetterlinge und Schlafsternchen kosten Punkte.</span></div>
+          <div class="ruleChip"><b>Treffen</b><span>Einhörner bringen Punkte und Serien.</span></div>
+          <div class="ruleChip"><b>Sammeln</b><span>Power-ups sind kurz sichtbar.</span></div>
+          <div class="ruleChip"><b>Meiden</b><span>Falter und Schlafsternchen kosten Punkte.</span></div>
         </div>
         <div class="placeSelectGrid" aria-label="Magischen Ort wählen">
           <button class="placeCard" type="button" data-place="sparkleValley" style="--place-img: url('assets/background_fairy_meadow.webp')">
@@ -822,16 +835,16 @@
           <article class="guideItem">
             <h3>Einhörner</h3>
             <p>Standard-Einhorn <span>+10</span></p>
+            <p>Schlaf-Einhorn <span>+15</span></p>
             <p>Baby-Einhorn <span>+20</span></p>
             <p>Gold-Einhorn <span>+50</span></p>
-            <p>Schlaf-Einhorn <span>+15</span></p>
           </article>
           <article class="guideItem">
             <h3>Power-ups</h3>
             <p>Glitzeruhr <span>+10 Sek.</span></p>
             <p>Regenbogenrausch <span>x2</span></p>
-            <p>Herzmagnet <span>große Trefferzone</span></p>
-            <p>Chaos-Regenbogen <span>x3 mit Risiko</span></p>
+            <p>Herzmagnet <span>große Hitbox</span></p>
+            <p>Chaos-Regenbogen <span>x3, Risiko</span></p>
           </article>
           <article class="guideItem">
             <h3>Lieber meiden</h3>
@@ -1068,6 +1081,7 @@
         constructor() {
           this.enabled = storageGet(STORAGE.sound, "on") !== "off";
           this.ctx = null;
+          this.master = null;
         }
 
         async ensure() {
@@ -1076,10 +1090,17 @@
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
             this.ctx = new AudioContext();
+            this.master = this.ctx.createGain();
+            this.master.gain.value = this.isTouchDevice() ? 0.78 : 0.48;
+            this.master.connect(this.ctx.destination);
           }
           if (this.ctx.state === "suspended") {
             await this.ctx.resume();
           }
+        }
+
+        isTouchDevice() {
+          return matchMedia("(hover: none), (pointer: coarse)").matches;
         }
 
         setEnabled(enabled) {
@@ -1090,12 +1111,12 @@
         toggle() {
           this.setEnabled(!this.enabled);
           if (this.enabled) {
-            this.ensure().then(() => this.button());
+            this.ensure().then(() => this.unlock());
           }
         }
 
         tone(freq, time, type = "sine", volume = 0.08, delay = 0) {
-          if (!this.enabled || !this.ctx) return;
+          if (!this.enabled || !this.ctx || !this.master) return;
           const now = this.ctx.currentTime + delay;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1105,31 +1126,37 @@
           gain.gain.setValueAtTime(0.0001, now);
           gain.gain.exponentialRampToValueAtTime(volume, now + 0.018);
           gain.gain.exponentialRampToValueAtTime(0.0001, now + time);
-          osc.connect(gain).connect(this.ctx.destination);
+          osc.connect(gain).connect(this.master);
           osc.start(now);
           osc.stop(now + time + 0.02);
         }
 
+        unlock() {
+          this.tone(320, 0.055, "triangle", 0.09);
+          this.tone(520, 0.075, "sine", 0.055, 0.025);
+        }
+
         button() {
-          this.tone(520, 0.08, "sine", 0.035);
-          this.tone(780, 0.1, "triangle", 0.025, 0.03);
+          this.tone(420, 0.08, "triangle", 0.055);
+          this.tone(680, 0.1, "sine", 0.04, 0.03);
         }
 
         cast() {
-          this.tone(660, 0.08, "triangle", 0.035);
+          this.tone(430, 0.075, "triangle", 0.055);
+          this.tone(760, 0.07, "sine", 0.032, 0.025);
         }
 
         hit(type) {
-          const base = type === "golden" ? 880 : 620;
-          this.tone(base, 0.12, "sine", type === "golden" ? 0.075 : 0.052);
-          this.tone(base * 1.5, 0.18, "triangle", type === "golden" ? 0.055 : 0.035, 0.04);
-          if (type === "golden") this.tone(1320, 0.22, "sine", 0.04, 0.13);
+          const base = type === "golden" ? 640 : 480;
+          this.tone(base, 0.13, "triangle", type === "golden" ? 0.095 : 0.07);
+          this.tone(base * 1.42, 0.18, "sine", type === "golden" ? 0.068 : 0.046, 0.04);
+          if (type === "golden") this.tone(980, 0.22, "triangle", 0.05, 0.13);
         }
 
         combo(combo) {
           if (combo < 3) return;
-          this.tone(740 + combo * 14, 0.08, "sine", 0.035);
-          this.tone(960 + combo * 12, 0.11, "triangle", 0.03, 0.055);
+          this.tone(520 + combo * 10, 0.08, "triangle", 0.052);
+          this.tone(760 + combo * 10, 0.11, "sine", 0.04, 0.055);
         }
 
         gameOver() {
@@ -1520,6 +1547,9 @@
           this.ui.soundHud.addEventListener("click", () => this.toggleSound());
           this.ui.menuSound.addEventListener("click", () => this.toggleSound());
 
+          document.addEventListener("pointerdown", () => {
+            this.sound.ensure().then(() => this.sound.unlock()).catch(() => {});
+          }, { once: true, capture: true });
           this.canvas.addEventListener("pointerdown", e => this.pointerDown(e));
           this.canvas.addEventListener("pointermove", e => this.pointerMove(e), { passive: true });
           this.canvas.addEventListener("pointerleave", () => this.ui.cursor.style.opacity = 0, { passive: true });
